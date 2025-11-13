@@ -41,6 +41,7 @@ Logout and login from your desktop environment.
 pipx ensurepath
 pipx install --include-deps ansible
 pipx inject ansible github3.py
+pipx inject ansible python-debian
 ```
 
 ### Ansible validation
@@ -85,15 +86,13 @@ No errors should occur on the last `apt-get update` command.
 Remember, you need to be in the `ansible/` directory to run `ansible-playbook`.
 
 ```
-sudo -v
-ansible-playbook nvim.yml
+ansible-playbook nvim.yml --ask-become-pass
 ```
 
 ## Update provided packages or ansible configuration
 
 ```
-sudo -v
-ansible-playbook nvim.yml --check --diff  # Facultative, shows what will be done
-ansible-playbook nvim.yml
+ansible-playbook nvim.yml --check --diff --ask-become-pass  # Facultative, shows what will be done
+ansible-playbook nvim.yml --ask-become-pass
 ```
 
