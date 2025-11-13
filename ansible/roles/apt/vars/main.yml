@@ -8,4 +8,5 @@ packages:
   - make
   - cmake
   - curl
-
+  - btop
+  - ca-certificates

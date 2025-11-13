@@ -41,3 +41,4 @@ require("config.telescope")
 require("config.git")
 require("bufferline").setup {}
 require("config.claude")
+require("config.icons")

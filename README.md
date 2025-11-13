@@ -54,3 +54,14 @@ Keymaps are defined in [mappings.lua](./lua/config/mappings.lua) and the [mappin
 ## Colorscheme
 
 Right now the theme is set by `galaxyline` in [here](./lua/config/spec.lua). You can change this, you can also add a theme like the `catpuccin` theme in [here](./lua/config/theme.lua).
+
+## open-webui
+
+need ollama running 
+
+https://docs.ollama.com/faq#how-can-i-allow-additional-web-origins-to-access-ollama
+https://github.com/open-webui/open-webui
+
+```bash
+docker run -d -p 3000:8080 -e OLLAMA_BASE_URL=http://0.0.0.0:11434 -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:ollama
+```

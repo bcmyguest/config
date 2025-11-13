@@ -1,0 +1,22 @@
+- name: Create user fonts directory
+  file:
+    path: "{{ fonts_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Download Nerd Font archives
+  get_url:
+    url: "https://github.com/ryanoasis/nerd-fonts/releases/download/{{ nerd_fonts_version }}/{{ item }}.zip"
+    dest: "/tmp/{{ item }}.zip"
+  loop: "{{ nerd_fonts }}"
+
+- name: Extract Nerd Fonts
+  unarchive:
+    src: "/tmp/{{ item }}.zip"
+    dest: "{{ fonts_dir }}"
+    remote_src: true
+  loop: "{{ nerd_fonts }}"
+
+- name: Update user font cache
+  command: fc-cache -f -v "{{ fonts_dir }}"
+  changed_when: false

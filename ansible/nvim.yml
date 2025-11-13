@@ -11,3 +11,7 @@
       tags: [uv]
     - role: volta
       tags: [volta]
+    - role: nerdfonts
+      tags: [nerdfonts]
+    - role: geerlingguy.docker
+      tags: [docker]

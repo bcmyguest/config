@@ -77,6 +77,7 @@ First we ensure that apt repositories don't produce errors and that all packages
 ```
 sudo apt-get update  # notice for failing repositories and clean them up
 sudo apt-get upgrade
+ansible-galaxy role install geerlingguy.docker
 ```
 
 No errors should occur on the last `apt-get update` command.

@@ -1,0 +1,5 @@
+nerd_fonts:
+  - FiraCode
+  - JetBrainsMono
+nerd_fonts_version: "v3.1.1"
+fonts_dir: "{{ ansible_env.HOME }}/.local/share/fonts/nerd-fonts"
