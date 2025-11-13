@@ -7,5 +7,7 @@
       tags: [nvim]
     - role: lua
       tags: [lua]
+    - role: uv
+      tags: [uv]
     - role: volta
       tags: [volta]

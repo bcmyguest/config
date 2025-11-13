@@ -1,0 +1,115 @@
+- name: get latest release of uv
+  community.general.github_release:
+    user: astral-sh
+    repo: uv
+    action: latest_release
+    prerelease: false
+  register: release
+- name: extract version from release
+  set_fact:
+    current_release: "{{ release.tag | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', multiline=True) }}"
+  check_mode: false
+  when:
+    - release is succeeded
+
+- name: get current version
+  ansible.builtin.command:
+    argv:
+      - uv
+      - --version
+  register: current_version
+  ignore_errors: true
+  changed_when: false
+  check_mode: false
+
+- name: extract version
+  set_fact:
+    current_version: "{{ current_version.stdout_lines[0] | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', multiline=True) }}"
+  check_mode: false
+  when:
+    - current_version is succeeded and current_version.stdout_lines is defined
+
+- name: extract version
+  set_fact:
+    current_version: "v{{ current_version }}"
+  check_mode: false
+
+- name: Show current version
+  debug:
+    var: current_version
+  when:
+    - current_version.rc is not defined
+
+- name: latest release
+  debug:
+    var: release.tag
+
+- name: pinned version
+  debug:
+    var: pinned_version
+
+# should be either release.tag or neovim_pinned_version
+- name: set version to install
+  set_fact:
+    version_to_install: "{{ release.tag }}"
+  when:
+    - pinned_version is not defined
+
+- name: version_to_install
+  debug:
+    var: version_to_install
+
+- name: set version to install
+  set_fact:
+    version_to_install: "{{ pinned_version }}"
+  when:
+    - pinned_version is defined
+
+- name: Show version to install
+  debug:
+    var: version_to_install
+- name: Installed correct version
+  debug:
+    var: version_to_install != current_version
+- block:
+    - name: create temporary download directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: uv
+      register: tmpdir
+    - name: show tmpdir
+      debug:
+        var: tmpdir
+
+    - name: extract binary
+      ansible.builtin.unarchive:
+        src: "https://github.com/astral-sh/uv/releases/download/{{ version_to_install }}/uv-x86_64-unknown-linux-musl.tar.gz"
+        dest: "{{ tmpdir.path }}"
+        mode: "0755"
+        remote_src: true
+    - name: copy binaries
+      ansible.builtin.copy:
+        src: "{{ tmpdir.path }}/uv-x86_64-unknown-linux-musl/"
+        dest: "{{ ansible_env.HOME }}/.local/bin"
+    - name: Change uvx owner
+      file:
+        path: "{{ ansible_env.HOME }}/.local/bin/uvx"
+        state: file
+        recurse: false
+        owner: 1000
+        group: 1000
+        mode: "0755"
+    - name: Change uv owner
+      file:
+        path: "{{ ansible_env.HOME }}/.local/bin/uv"
+        state: file
+        recurse: false
+        owner: 1000
+        group: 1000
+        mode: "0755"
+    - name: add uv to PATH
+      ansible.builtin.shell:
+        cmd: "export PATH=$PATH:{{ extra_path }}"
+  when:
+    - not ansible_check_mode
+    - version_to_install != current_version
