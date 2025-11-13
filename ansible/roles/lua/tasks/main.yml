@@ -1,0 +1,107 @@
+- name: Get current version
+  ansible.builtin.command:
+    argv:
+      - lua
+      - -v
+  register: current_version
+  ignore_errors: true
+  changed_when: false
+  check_mode: false
+
+- name: extract version
+  set_fact:
+    current_version: "{{ current_version.stdout_lines[0] | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', multiline=true) }}"
+  check_mode: false
+  when:
+    - current_version is succeeded and current_version.stdout_lines is defined
+
+- name: Show current version
+  debug:
+    var: current_version
+  when:
+    - current_version is defined
+
+
+- name: Show expected version
+  debug:
+    var: lua_version
+  when:
+    - current_version is defined
+
+- name: set version to install
+  set_fact:
+    version_to_install: "{{ lua_version }}"
+  when:
+    - lua_version is defined
+    - lua_version != current_version
+
+- name: Show version to install
+  debug:
+    var: version_to_install
+  when:
+    - lua_version is defined
+
+- block:
+    - name: create temporary download directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: luarocks
+      register: tmpdir
+    - name: show tmpdir
+      debug:
+        var: tmpdir
+    - name: extract binary
+      ansible.builtin.unarchive:
+        src: "https://www.lua.org/ftp/lua-{{lua_version}}.tar.gz"
+        dest: "{{ tmpdir.path }}"
+        remote_src: true
+    - name: run make
+      ansible.builtin.command:
+        argv:
+          - make
+          - all
+          - tests
+
+        chdir: "{{ tmpdir.path }}/lua-{{lua_version}}"
+      become: true
+      ignore_errors: true
+    - name: install
+      ansible.builtin.command:
+        argv:
+          - make
+          - install
+        chdir: "{{ tmpdir.path }}/lua-{{lua_version}}"
+      become: true
+      ignore_errors: true
+    - name: check which version of lua is installed
+      ansible.builtin.command:
+        argv:
+          - lua
+          - -v
+      register: lua_check
+      changed_when: false
+      check_mode: false
+    - name: Show lua version 
+      debug:
+        var: lua_check
+
+    - name: extract version
+      set_fact:
+        lua_check: "{{ lua_check.stdout_lines[0] | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', multiline=true) }}"
+      check_mode: false
+      when:
+        - lua_check is succeeded and lua_check.stdout_lines is defined
+    - name: fail if lua version is not correct
+      ansible.builtin.fail:
+        msg: "Lua version is not correct"
+      when:
+        - lua_check is not defined
+        - lua_check is not succeeded
+        - lua_check != "{{ lua_version }}"
+
+  when:
+    - not ansible_check_mode
+    - lua_version is defined
+    - lua_version != current_version
+
+

@@ -1,0 +1,11 @@
+---
+- hosts: localhost
+  roles:
+    - role: apt
+      tags: [apt]
+    - role: nvim
+      tags: [nvim]
+    - role: lua
+      tags: [lua]
+    - role: volta
+      tags: [volta]

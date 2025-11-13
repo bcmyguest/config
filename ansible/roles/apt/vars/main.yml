@@ -1,0 +1,11 @@
+---
+packages:
+  - build-essential
+  - libreadline-dev
+  - unzip
+  - ripgrep
+  - vim
+  - make
+  - cmake
+  - curl
+

@@ -1,0 +1,7 @@
+---
+- name: install apt packages
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: latest
+  with_items: "{{ packages }}"
+  become: true
