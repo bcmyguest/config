@@ -10,3 +10,4 @@ packages:
   - curl
   - btop
   - ca-certificates
+  - tilix

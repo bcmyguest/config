@@ -63,5 +63,5 @@ https://docs.ollama.com/faq#how-can-i-allow-additional-web-origins-to-access-oll
 https://github.com/open-webui/open-webui
 
 ```bash
-docker run -d -p 3000:8080 -e OLLAMA_BASE_URL=http://0.0.0.0:11434 -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:ollama
+docker run -d -p 3000:8080 -e OLLAMA_BASE_URL=http://0.0.0.0:11434 -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:ollama -e HOST='0.0.0.0'
 ```

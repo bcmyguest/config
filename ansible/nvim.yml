@@ -15,3 +15,5 @@
       tags: [nerdfonts]
     - role: geerlingguy.docker
       tags: [docker]
+    - role: opencode
+      tags: [opencode]

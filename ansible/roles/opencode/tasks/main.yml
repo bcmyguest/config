@@ -1,0 +1,92 @@
+- name: get latest release of opencode
+  community.general.github_release:
+    user: sst
+    repo: opencode
+    action: latest_release
+    prerelease: false
+  register: release
+- name: extract version from release
+  set_fact:
+    current_release: "{{ release.tag | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', multiline=True) }}"
+  check_mode: false
+  when:
+    - release is succeeded
+
+- name: get current version
+  ansible.builtin.command:
+    argv:
+      - opencode
+      - --version
+  register: current_version
+  ignore_errors: true
+  changed_when: false
+  check_mode: false
+
+- name: extract version
+  set_fact:
+    current_version: "{{ current_version.stdout_lines[0] | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', multiline=True) }}"
+  check_mode: false
+  when:
+    - current_version is succeeded and current_version.stdout_lines is defined
+
+- name: extract version
+  set_fact:
+    current_version: "v{{ current_version }}"
+  check_mode: false
+
+- name: Show current version
+  debug:
+    var: current_version
+  when:
+    - current_version.rc is not defined
+
+- name: latest release
+  debug:
+    var: release.tag
+
+- name: pinned version
+  debug:
+    var: pinned_version
+
+# should be either release.tag or neovim_pinned_version
+- name: set version to install
+  set_fact:
+    version_to_install: "{{ release.tag }}"
+  when:
+    - pinned_version is not defined
+
+- name: version_to_install
+  debug:
+    var: version_to_install
+
+- name: set version to install
+  set_fact:
+    version_to_install: "{{ pinned_version }}"
+  when:
+    - pinned_version is defined
+
+- name: Show version to install
+  debug:
+    var: version_to_install
+- name: Installed correct version
+  debug:
+    var: version_to_install != current_version
+- block:
+    - name: create temporary download directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: opencode
+      register: tmpdir
+    - name: show tmpdir
+      debug:
+        var: tmpdir
+
+    - name: extract binary
+      ansible.builtin.unarchive:
+        src: "https://github.com/sst/opencode/releases/download/{{ version_to_install }}/opencode-linux-x64-baseline.zip"
+        dest: "{{ ansible_env.HOME }}/.local/bin"
+        mode: "0755"
+        remote_src: true
+  when:
+    - not ansible_check_mode
+    - version_to_install != current_version
