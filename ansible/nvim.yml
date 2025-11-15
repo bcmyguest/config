@@ -17,3 +17,5 @@
       tags: [docker]
     - role: opencode
       tags: [opencode]
+    - role: llama-cpp
+      tags: [llama-cpp]

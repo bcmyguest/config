@@ -57,7 +57,7 @@ Right now the theme is set by `galaxyline` in [here](./lua/config/spec.lua). You
 
 ## open-webui
 
-need ollama running 
+need ollama running (docker run --restart always)
 
 https://docs.ollama.com/faq#how-can-i-allow-additional-web-origins-to-access-ollama
 https://github.com/open-webui/open-webui
@@ -65,3 +65,30 @@ https://github.com/open-webui/open-webui
 ```bash
 docker run -d -p 3000:8080 -e OLLAMA_BASE_URL=http://0.0.0.0:11434 -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:ollama -e HOST='0.0.0.0'
 ```
+
+
+## llama.cpp
+
+https://github.com/ggml-org/llama.cpp/blob/master/docs/docker.md
+
+```
+docker run -v /home/b/.cache/llama.cpp/:/models -p 8000:8000 ghcr.io/ggml-org/llama.cpp:server-vulkan --port 8000 --host 0.0.0.0 -n 512 -m "/models/ggml-org_gemma-3-1b-it-GGUF_gemma-3-1b-it-Q4_K_M.gguf"
+
+```
+from the docs:
+```
+# Use a local model file
+llama-cli -m my_model.gguf
+
+# Or download and run a model directly from Hugging Face
+llama-cli -hf ggml-org/gemma-3-1b-it-GGUF
+
+# Launch OpenAI-compatible API server
+llama-server -hf ggml-org/gemma-3-1b-it-GGUF
+```
+
+## docker 
+
+manually installed 
+
+
