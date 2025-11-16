@@ -70,10 +70,25 @@ docker run -d -p 3000:8080 -e OLLAMA_BASE_URL=http://0.0.0.0:11434 -v open-webui
 ## llama.cpp
 
 https://github.com/ggml-org/llama.cpp/blob/master/docs/docker.md
-
+https://rocm.docs.amd.com/projects/install-on-linux/en/latest/install/3rd-party/previous-versions/llama-cpp-install-v25.9.html#using-docker-with-llama-cpp-pre-installed
 ```
-docker run -v /home/b/.cache/llama.cpp/:/models -p 8000:8000 ghcr.io/ggml-org/llama.cpp:server-vulkan --port 8000 --host 0.0.0.0 -n 512 -m "/models/ggml-org_gemma-3-1b-it-GGUF_gemma-3-1b-it-Q4_K_M.gguf"
-
+docker run --privileged \
+           --network=host \
+           --device=/dev/kfd \
+           --device=/dev/dri \
+           --group-add video \
+           --cap-add=SYS_PTRACE \
+           --security-opt seccomp=unconfined \
+           --ipc=host \
+           --shm-size 16G \
+           -v $MODEL_PATH:/data \
+           rocm/llama.cpp:<TAG>_server \
+             -m /data/DeepSeek-V3-Q4_K_M-00001-of-00009.gguf \
+             --port 8000 --host 0.0.0.0 -n 512 --n-gpu-layers 999
+```
+my command:
+```
+docker run -v /home/b/.cache/llama.cpp/:/models --privileged --network=host --cap-add=SYS_PTRACE --cap-add=SYS_PTRACE --group-add video --device=/dev/kfd --device=/dev/dri  -p 8000:8000 ghcr.io/ggml-org/llama.cpp:server-vulkan --port 8000 --host 0.0.0.0 -n 512 -ngl 999 -m "/models/ggml-org_Qwen2.5-Coder-7B-Q8_0-GGUF_qwen2.5-coder-7b-q8_0.gguf" -ub 1024 -b 1024 --ctx-size 0 --cache-reuse 256
 ```
 from the docs:
 ```
@@ -87,6 +102,10 @@ llama-cli -hf ggml-org/gemma-3-1b-it-GGUF
 llama-server -hf ggml-org/gemma-3-1b-it-GGUF
 ```
 
+```
+llama-server -m /home/b/.cache/llama.cpp/ggml-org_Qwen3-Coder-30B-A3B-Instruct-Q8_0-GGUF_qwen3-coder-30b-a3b-instruct-q8_0.gguf -ngl 99 -ub 1024 -b 1024 --ctx-size 0 --cache-reuse 256 --port 8012 --host 127.0.0.1
+
+```
 ## docker 
 
 manually installed 
@@ -121,3 +140,6 @@ then
 python3 -m pip install argcomplete
 activate-global-python-argcomplete --user
 ```
+
+
+
