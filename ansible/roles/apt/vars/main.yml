@@ -11,3 +11,6 @@ packages:
   - btop
   - ca-certificates
   - tilix
+  - mesa-utils
+  - nvtop
+  - grub-customizer # For managing GRUB bootloader

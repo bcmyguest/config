@@ -90,5 +90,34 @@ llama-server -hf ggml-org/gemma-3-1b-it-GGUF
 ## docker 
 
 manually installed 
+https://docs.docker.com/engine/install/ubuntu/
+
+## amd gpu drivers
+https://rocm.docs.amd.com/projects/install-on-linux/en/latest/install/quick-start.html
+```
+wget https://repo.radeon.com/amdgpu-install/7.1/ubuntu/noble/amdgpu-install_7.1.70100-1_all.deb
+sudo apt install ./amdgpu-install_7.1.70100-1_all.deb
+sudo apt update
+sudo apt install python3-setuptools python3-wheel
+sudo usermod -a -G render,video $LOGNAME # Add the current user to the render and video groups
+sudo apt install rocm
 
 
+wget https://repo.radeon.com/amdgpu-install/7.1/ubuntu/noble/amdgpu-install_7.1.70100-1_all.deb
+sudo apt install ./amdgpu-install_7.1.70100-1_all.deb
+sudo apt update
+sudo apt install "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)"
+sudo apt install amdgpu-dkms
+```
+
+then 
+
+https://rocm.docs.amd.com/projects/amdsmi/en/latest/install/install.html
+
+
+then 
+
+```
+python3 -m pip install argcomplete
+activate-global-python-argcomplete --user
+```
