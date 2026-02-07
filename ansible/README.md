@@ -97,3 +97,9 @@ ansible-playbook nvim.yml --check --diff --ask-become-pass  # Facultative, shows
 ansible-playbook nvim.yml --ask-become-pass
 ```
 
+## Also not installed in ansible (yet)
+
+- chezmoi
+- apt repo "universe"
+- llama.cpp
+- docker

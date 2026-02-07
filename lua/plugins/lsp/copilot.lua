@@ -1,7 +1,7 @@
 -- copilot lsp
 
 return {
-	"github/copilot.vim", {
+	-- "github/copilot.vim", {
 	-- "CopilotC-Nvim/CopilotChat.nvim",
 	-- dependencies = {
 	-- 	{ "nvim-lua/plenary.nvim", branch = "master" },
@@ -18,5 +18,5 @@ return {
 	--   auto_insert_mode = true,     -- Enter insert mode when opening
 	-- }
 	-- },
-},
+	-- },
 }

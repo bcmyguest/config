@@ -64,6 +64,15 @@ https://github.com/open-webui/open-webui
 
 ```bash
 docker run -d -p 3000:8080 -e OLLAMA_BASE_URL=http://0.0.0.0:11434 -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:ollama -e HOST='0.0.0.0'
+
+docker run -d -p 8080:8080 -e HOST='0.0.0.0' -e OLLAMA_BASE_URL=http://0.0.0.0:11434 -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
+
+```
+
+
+```
+docker run -d -p 3000:8081  --device /dev/kfd --device /dev/dri -v ollama:/root/.ollama -p 11434:11434 -e OLLAMA_VULKAN=1 --name ollama ollama/ollama -e HOST='0.0.0.0'
+
 ```
 
 

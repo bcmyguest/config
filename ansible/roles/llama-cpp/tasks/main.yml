@@ -80,17 +80,28 @@
     - name: show tmpdir
       debug:
         var: tmpdir
-
+    #
+    # - name: extract binary
+    #   ansible.builtin.unarchive:
+    #     src: "https://github.com/astral-sh/uv/releases/download/{{ version_to_install }}/uv-x86_64-unknown-linux-musl.tar.gz"
+    #     dest: "{{ tmpdir.path }}"
+    #     mode: "0755"
+    #     remote_src: true
+    # - name: copy binaries
+    #   ansible.builtin.copy:
+    #     src: "{{ tmpdir.path }}/uv-x86_64-unknown-linux-musl/"
+    #     dest: "{{ ansible_env.HOME }}/.local/bin"
+    #
     - name: extract binary
       ansible.builtin.unarchive:
-        src: "https://github.com/ggml-org/llama.cpp/releases/download/{{ version_to_install }}/llama-{{version_to_install}}-bin-ubuntu-vulkan-x64.zip"
+        src: "https://github.com/ggml-org/llama.cpp/releases/download/{{ version_to_install }}/llama-{{version_to_install}}-bin-ubuntu-vulkan-x64.tar.gz"
         dest: "{{ tmpdir.path }}"
         mode: "0755"
         remote_src: true
 
     - name: copy binaries
       ansible.builtin.copy:
-        src: "{{ tmpdir.path }}/build/bin/"
+        src: "{{ tmpdir.path }}/llama-{{version_to_install}}/"
         dest: "{{ ansible_env.HOME }}/.local/llama-cpp/bin"
     - name: find binary files
       find:

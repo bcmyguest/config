@@ -1,7 +1,7 @@
 -- package manager by configurations
 local mason_lspconfig = require("mason-lspconfig")
 mason_lspconfig.setup {
-	ensure_installed = { "lua_ls", "rust_analyzer", "jsonls", "ruff", "basedpyright", "grammarly", "eslint", "ts_ls", "yamlls" },
+	ensure_installed = { "lua_ls", "rust_analyzer", "jsonls", "ruff", "basedpyright", "grammarly", "eslint", "ts_ls", "yamlls", "clangd" },
 	automatic_install = true,
 }
 
@@ -235,7 +235,7 @@ vim.lsp.config["basedpyright"] = {
 	},
 }
 
-vim.lsp.enable({ "lua_ls", "basedpyright", "ruff", "ts_ls", "jsonls", "yamlls", "eslint", "grammarly" })
+vim.lsp.enable({ "lua_ls", "basedpyright", "ruff", "ts_ls", "jsonls", "yamlls", "eslint", "grammarly", "clangd" })
 
 -- auto-format on save
 vim.cmd [[autocmd BufWritePre * lua vim.lsp.buf.format()]]
