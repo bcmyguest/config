@@ -9,7 +9,26 @@ return {
 	config = function()
 		---@type opencode.Opts
 		vim.g.opencode_opts = {
-			-- Your configuration, if any — see `lua/opencode/config.lua`, or "goto definition" on the type or field.
+			provider = {
+				enabled = "snacks",
+				snacks = {
+					win = {
+						position = "right",
+						-- on_buf = function(win)
+						-- 	require("opencode.keymaps").apply(win.buf)
+						-- 	vim.api.nvim_buf_set_option(win.buf, "buftype", "terminal")
+						-- 	vim.api.nvim_buf_set_option(win.buf, "filetype", "opencode_terminal")
+						-- 	if vim.b._opencode_terminal then
+						-- 		vim.b._opencode_terminal = false
+						-- 	else
+						-- 		vim.b._opencode_terminal = true
+						-- 	end
+						-- end,
+						-- ...
+					},
+					-- ...
+				}
+			}
 		}
 
 		-- Required for `opts.events.reload`.
