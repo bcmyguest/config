@@ -40,7 +40,6 @@ require("config.wilder")
 require("config.telescope")
 require("config.git")
 require("bufferline").setup {}
-require("config.claude")
 require("config.icons")
 require("plugins.opencode")
 require("config.opencode")
