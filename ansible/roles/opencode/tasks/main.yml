@@ -83,7 +83,7 @@
 
     - name: extract binary
       ansible.builtin.unarchive:
-        src: "https://github.com/sst/opencode/releases/download/{{ version_to_install }}/opencode-linux-x64-baseline.zip"
+        src: "https://github.com/sst/opencode/releases/download/{{ version_to_install }}/opencode-linux-x64-baseline.tar.gz"
         dest: "{{ ansible_env.HOME }}/.local/bin"
         mode: "0755"
         remote_src: true
