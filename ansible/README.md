@@ -103,3 +103,4 @@ ansible-playbook nvim.yml --ask-become-pass
 - apt repo "universe"
 - llama.cpp
 - docker
+- starship

@@ -13,9 +13,12 @@
       tags: [volta]
     - role: nerdfonts
       tags: [nerdfonts]
-    - role: geerlingguy.docker
-      tags: [docker]
     - role: opencode
       tags: [opencode]
     - role: llama-cpp
       tags: [llama-cpp]
+    - role: starship
+      tags: [starship]
+    - role: geerlingguy.docker
+      tags: [docker]
+      become: true

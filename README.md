@@ -66,6 +66,19 @@ https://github.com/open-webui/open-webui
 docker run -d -p 8080:8080 -e HOST='0.0.0.0' -e OLLAMA_BASE_URL=http://0.0.0.0:11434 -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
 
 ```
+this one with network mode host seems to work better.
+```
+docker run -d -p 8080:8080 --network=host -e HOST='0.0.0.0' -e OLLAMA_BASE_URL=http://0.0.0.0:11434 -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
+
+```
+
+
+if you need to update the docker image just
+
+```
+docker pull ghcr.io/open-webui/open-webui:main
+
+```
 
 ## llama.cpp
 

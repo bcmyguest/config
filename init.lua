@@ -24,6 +24,7 @@ vim.diagnostic.config({
 	},
 	severity_sort = true,
 })
+vim.api.nvim_set_option("clipboard", "unnamed")
 require("config.lazy")
 require("config.telescope")  -- require telescope
 require("mason").setup()     -- require mason

@@ -1,3 +1,14 @@
+local opencode_cmd = 'opencode --port'
+local snacks_terminal_opts = {
+	win = {
+		position = 'right',
+		enter = false,
+		on_win = function(win)
+			-- Set up keymaps and cleanup for an arbitrary terminal
+			require('opencode.terminal').setup(win.win)
+		end,
+	},
+}
 return {
 	"nickjvandyke/opencode.nvim",
 	dependencies = {
@@ -9,26 +20,17 @@ return {
 	config = function()
 		---@type opencode.Opts
 		vim.g.opencode_opts = {
-			provider = {
-				enabled = "snacks",
-				snacks = {
-					win = {
-						position = "right",
-						-- on_buf = function(win)
-						-- 	require("opencode.keymaps").apply(win.buf)
-						-- 	vim.api.nvim_buf_set_option(win.buf, "buftype", "terminal")
-						-- 	vim.api.nvim_buf_set_option(win.buf, "filetype", "opencode_terminal")
-						-- 	if vim.b._opencode_terminal then
-						-- 		vim.b._opencode_terminal = false
-						-- 	else
-						-- 		vim.b._opencode_terminal = true
-						-- 	end
-						-- end,
-						-- ...
-					},
-					-- ...
-				}
-			}
+			server = {
+				start = function()
+					require('snacks.terminal').open(opencode_cmd, snacks_terminal_opts)
+				end,
+				stop = function()
+					require('snacks.terminal').get(opencode_cmd, snacks_terminal_opts):close()
+				end,
+				toggle = function()
+					require('snacks.terminal').toggle(opencode_cmd, snacks_terminal_opts)
+				end,
+			},
 		}
 
 		-- Required for `opts.events.reload`.

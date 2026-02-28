@@ -1,0 +1,17 @@
+- name: Check if Starship is already installed
+  command: starship --version
+  register: starship_version
+  ignore_errors: true
+  changed_when: false
+# clearly this doesn't work
+- name: Install Starship using the official install script
+  shell: curl -sS https://starship.rs/install.sh | sh
+  become: true
+  when: starship_version.rc is defined and starship_version.rc != 0
+
+- name: Source starship in shell configuration (bash)
+  lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    line: 'eval "$(starship init bash)"'
+    create: yes
+  when: starship_version.rc == 0

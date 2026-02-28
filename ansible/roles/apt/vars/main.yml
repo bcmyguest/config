@@ -13,7 +13,9 @@ packages:
   - tilix
   - mesa-utils
   - nvtop
-  - grub-customizer # For managing GRUB bootloader
+  # - grub-customizer # For managing GRUB bootloader
   - libfuse2t64 # requires universe apt-repo `sudo add-apt-repository universe`
   - keychain
   - tree
+  - apt-transport-https
+  - xclip
