@@ -1,12 +1,4 @@
 # AGENTS.md
-
-## Repo Setup
-
-1. Install Neovim (recommended 0.10+).  
-2. Run `nvim` once – the repo will automatically install `lazy.nvim` and all plugins.  
-3. Install Neovim LSP servers with `:Mason` inside Neovim.  
-4. You can run the included playbook: `ansible-playbook -i localhost, ansible/nvim.yml` to set up system‑wide dependencies.
-
 ## Lua Project Layout
 
 - `lua/init.lua` is the main entry point that loads `lua/config/lazy.lua` and all plugin configs.  
