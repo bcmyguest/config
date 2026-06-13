@@ -44,4 +44,3 @@ require("bufferline").setup {}
 require("config.icons")
 require("plugins.opencode")
 require("config.opencode")
--- require("config.minuet")
