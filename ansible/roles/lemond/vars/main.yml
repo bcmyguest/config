@@ -1,0 +1,3 @@
+# merged into /var/lib/lemonade/config.json (lemond reads host/port from there, not env)
+lemond_settings:
+  host: 0.0.0.0

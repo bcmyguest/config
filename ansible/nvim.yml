@@ -22,3 +22,6 @@
     - role: geerlingguy.docker
       tags: [docker]
       become: true
+    - role: lemond
+      tags: [lemond]
+      become: true

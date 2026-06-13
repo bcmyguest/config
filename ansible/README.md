@@ -2,6 +2,9 @@
 
 Used to install important config for nvim
 
+Claude Code plugins for this setup live in `../claude/plugins/`; after cloning run
+`../claude/install-plugins.sh` to install them.
+
 Note: Most of this is copied from 1511/spectra-apps>
 
 [[_TOC_]]
@@ -97,10 +100,35 @@ ansible-playbook nvim.yml --check --diff --ask-become-pass  # Facultative, shows
 ansible-playbook nvim.yml --ask-become-pass
 ```
 
+## lemond (lemonade-server) + Open WebUI
+
+lemond is installed by the `lemond` role (`--tags lemond`); full service docs in
+[docs/lemond.md](docs/lemond.md), ROCm/GPU notes in
+[docs/rocm-strix-halo.md](docs/rocm-strix-halo.md).
+
+Open WebUI is the chat frontend for lemond. It is **not** managed by ansible — it runs
+as a docker container with host networking and a named data volume:
+
+```
+docker run -d --name open-webui --network host --restart always \
+  -e OLLAMA_BASE_URL=http://0.0.0.0:11434 \
+  -v open-webui:/app/backend/data \
+  ghcr.io/open-webui/open-webui:main
+```
+
+- UI: `http://<host>:8080`
+- The lemond connection is configured **inside the UI**, not via env vars:
+  Admin Settings → Connections → OpenAI API → base URL
+  `http://localhost:13305/api/v1` (API key can be any non-empty string unless
+  `LEMONADE_API_KEY` is set on lemond). This setting lives in the `open-webui`
+  docker volume, so it survives container recreation but is NOT in this repo.
+- ollama models appear via the `OLLAMA_BASE_URL` env above; lemond models appear via
+  the OpenAI connection. If lemond models vanish from the picker, see the port-race
+  gotcha in [docs/lemond.md](docs/lemond.md).
+- Host networking means the container reaches lemond on plain `localhost:13305`.
+
 ## Also not installed in ansible (yet)
 
 - chezmoi
 - apt repo "universe"
-- llama.cpp
-- docker
-- starship
+- Open WebUI container (documented above, created manually)

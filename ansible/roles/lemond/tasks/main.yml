@@ -1,0 +1,100 @@
+# lemonade-server (lemond): local LLM server on port 13305.
+# Everything here needs become: true (set in nvim.yml).
+- name: add lemonade-team stable PPA
+  ansible.builtin.apt_repository:
+    repo: ppa:lemonade-team/stable
+    state: present
+
+- name: install lemonade-server
+  ansible.builtin.apt:
+    name: "lemonade-server{% if lemond_pinned_version is defined %}={{ lemond_pinned_version }}{% endif %}"
+    state: present
+    update_cache: true
+
+# The package ships BOTH a system unit and an enabled-by-default USER unit. The user
+# unit is what causes the port conflict: both race for 13305 at boot, the loser lingers
+# as a portless zombie with an empty model cache ("models gone" in Open WebUI).
+# We mask the user unit per-user (same as `systemctl --user mask lemond`).
+- name: ensure user systemd directory exists
+  become: false
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.config/systemd/user"
+    state: directory
+    mode: "0755"
+
+- name: mask the per-user lemond unit (prevents port 13305 race)
+  become: false
+  ansible.builtin.file:
+    src: /dev/null
+    dest: "{{ ansible_env.HOME }}/.config/systemd/user/lemond.service"
+    state: link
+
+# A failed bind doesn't make lemond exit, so without this the unit reports success
+# while serving nothing. The health probe makes systemd fail the unit and retry
+# (Restart=always comes from the packaged unit).
+- name: create lemond override directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/lemond.service.d
+    state: directory
+    mode: "0755"
+
+- name: install lemond startup health check override
+  ansible.builtin.copy:
+    src: override.conf
+    dest: /etc/systemd/system/lemond.service.d/override.conf
+    mode: "0644"
+  register: override
+
+# Publish the API on the LAN: lemond defaults to 127.0.0.1, settings live in
+# config.json (not env vars — see the comment in the packaged unit). Merge our
+# settings into whatever is already there instead of clobbering the file.
+- name: check for existing lemond config
+  ansible.builtin.stat:
+    path: /var/lib/lemonade/config.json
+  register: lemond_config_file
+
+- name: read current lemond config
+  ansible.builtin.slurp:
+    src: /var/lib/lemonade/config.json
+  register: lemond_config_raw
+  when: lemond_config_file.stat.exists
+
+- name: merge desired settings into config
+  set_fact:
+    lemond_config: "{{ ((lemond_config_raw.content | b64decode | from_json) if lemond_config_file.stat.exists else {}) | combine(lemond_settings) }}"
+
+- name: write lemond config
+  ansible.builtin.copy:
+    content: "{{ lemond_config | to_nice_json }}\n"
+    dest: /var/lib/lemonade/config.json
+    owner: lemonade
+    group: lemonade
+    mode: "0640"
+  register: config
+  when:
+    - not ansible_check_mode
+
+- name: enable and start lemond
+  ansible.builtin.systemd_service:
+    name: lemond
+    enabled: true
+    state: "{{ 'restarted' if (override.changed or config.changed) else 'started' }}"
+    daemon_reload: true
+  when:
+    - not ansible_check_mode
+
+- name: probe lemond health endpoint
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:13305/api/v1/health"
+    return_content: true
+  register: health
+  retries: 5
+  delay: 3
+  until: health.status == 200
+  check_mode: false
+
+- name: show lemond version and loaded models
+  debug:
+    msg: "lemond {{ health.json.version }} up, model loaded: {{ health.json.model_loaded | default('none') }}"
+  when:
+    - health.json is defined
