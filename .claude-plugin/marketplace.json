@@ -33,6 +33,21 @@
       "name": "git-attribution",
       "source": "./claude/plugins/git-attribution",
       "description": "Enforce Linux-kernel AI attribution policy on git commits"
+    },
+    {
+      "name": "uv-develop",
+      "source": "./claude/plugins/uv-develop",
+      "description": "Day-to-day Python development with uv (sync --frozen, run -m pytest, add/remove) following TDD"
+    },
+    {
+      "name": "uv-setup",
+      "source": "./claude/plugins/uv-setup",
+      "description": "Bootstrap a new uv Python project — packaging, pinned Python, type checker, pre-commit hooks, Docker, and docs"
+    },
+    {
+      "name": "pre-commit-setup",
+      "source": "./claude/plugins/pre-commit-setup",
+      "description": "Stand up pre-commit with the standard hygiene hooks and install the git hook"
     }
   ]
 }

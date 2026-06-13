@@ -1,0 +1,6 @@
+{
+  "name": "uv-setup",
+  "description": "Bootstrap a new uv Python project — packaging, pinned Python, type checker, pre-commit hooks, and docs",
+  "version": "0.1.0",
+  "author": { "name": "Brandon Guest" }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "pre-commit-setup",
+  "description": "Bootstrap pre-commit in a repo with the standard hygiene hooks (whitespace, end-of-file, YAML/JSON checks) and install the git hook",
+  "version": "0.1.0",
+  "author": { "name": "Brandon Guest" }
+}

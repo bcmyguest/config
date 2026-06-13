@@ -26,6 +26,9 @@
     "caveman@caveman",
     "document-skills@anthropic-agent-skills",
     "example-skills@anthropic-agent-skills",
-    "git-attribution@nvim-tools"
+    "git-attribution@nvim-tools",
+    "uv-develop@nvim-tools",
+    "uv-setup@nvim-tools",
+    "pre-commit-setup@nvim-tools"
   ]
 }
