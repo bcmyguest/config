@@ -1,8 +1,0 @@
-{
-  "name": "handoff",
-  "description": "Summarize the current state of a troubleshooting activity for the next agent",
-  "version": "0.1.0",
-  "author": {
-    "name": "Brandon Guest"
-  }
-}

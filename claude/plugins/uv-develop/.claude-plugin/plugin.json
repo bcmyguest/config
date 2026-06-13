@@ -1,6 +1,0 @@
-{
-  "name": "uv-develop",
-  "description": "Day-to-day Python development with uv (sync --frozen, run -m pytest, add/remove) following TDD",
-  "version": "0.1.0",
-  "author": { "name": "Brandon Guest" }
-}

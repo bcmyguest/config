@@ -1,8 +1,0 @@
-{
-  "name": "add-ansible-role",
-  "description": "Add tool-install roles to a personal Ansible provisioning playbook (config-driven location, GitHub-release template)",
-  "version": "0.1.0",
-  "author": {
-    "name": "Brandon Guest"
-  }
-}

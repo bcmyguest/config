@@ -1,8 +1,0 @@
-{
-  "name": "watchlist",
-  "description": "Track upstream GitHub issues/PRs/releases and report movement since last check",
-  "version": "0.1.0",
-  "author": {
-    "name": "Brandon Guest"
-  }
-}

@@ -18,17 +18,9 @@
     }
   ],
   "enable": [
-    "add-ansible-role@nvim-tools",
-    "handoff@nvim-tools",
-    "watchlist@nvim-tools",
-    "debug-lemonade@nvim-tools",
-    "senior-frontend-refactor@nvim-tools",
+    "nvim-tools@nvim-tools",
     "caveman@caveman",
     "document-skills@anthropic-agent-skills",
-    "example-skills@anthropic-agent-skills",
-    "git-attribution@nvim-tools",
-    "uv-develop@nvim-tools",
-    "uv-setup@nvim-tools",
-    "pre-commit-setup@nvim-tools"
+    "example-skills@anthropic-agent-skills"
   ]
 }

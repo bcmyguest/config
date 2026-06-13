@@ -75,6 +75,31 @@ uv python pin 3.13          # writes .python-version
 Keep `requires-python` in `pyproject.toml` consistent with the pin, e.g.
 `requires-python = ">=3.13"`. Commit `.python-version`.
 
+### Verify `.gitignore` does the right thing
+
+`uv init` writes a `.gitignore`, but confirm these three invariants — they're easy to
+break and silently wrong:
+
+- **`.python-version` is NOT ignored.** It must be committed so contributors and CI pin
+  the same interpreter. A bare-name pattern with no slash (e.g. a stray `.python-version`
+  or an over-broad `*.version`-style rule) would swallow it — make sure none does.
+- **`.venv` IS ignored, no matter how nested.** A pattern with no leading slash
+  (`.venv/`) already matches at every depth (`.venv/`, `pkg/.venv/`, `a/b/.venv/`). Don't
+  anchor it with a leading slash (`/.venv`), which would only ignore the top-level one.
+- **`__pycache__` IS ignored at any depth** — same reasoning: `__pycache__/` (no leading
+  slash) matches nested caches too.
+
+Verify with `git check-ignore` (exit `1`/no output = not ignored):
+
+```bash
+git check-ignore -v .python-version          # expect: no match (exit 1) — it's committed
+git check-ignore .venv a/b/.venv             # expect: both printed — ignored at any depth
+git check-ignore a/__pycache__/x.pyc         # expect: printed — ignored at any depth
+```
+
+If `git check-ignore .python-version` prints a match, find the offending rule (the `-v`
+flag shows which file/line) and remove or tighten it.
+
 ## 4. Set up a type checker (pyright by default)
 
 Default to **pyright**. Ask the user if they prefer another checker (e.g. mypy, ty);
@@ -234,6 +259,7 @@ If you change the Python version later, update both `FROM` lines and re-test.
 - [ ] `uv init --package` (or justified bare init)
 - [ ] `tool.uv.package = true` and a real `src/` layout
 - [ ] `.python-version` pinned to a stable release; `requires-python` matches
+- [ ] `.gitignore` checked: `.python-version` committed, `.venv` + `__pycache__` ignored at any depth
 - [ ] type checker installed and `uv run pyright` is clean
 - [ ] ruff + pyright pre-commit hooks pinned to tagged revs; `pre-commit install` run
 - [ ] README documents run / build / validate, all via `uv`

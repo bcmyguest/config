@@ -5,49 +5,9 @@
   },
   "plugins": [
     {
-      "name": "add-ansible-role",
-      "source": "./claude/plugins/add-ansible-role",
-      "description": "Add tool-install roles to a personal Ansible provisioning playbook (config-driven location, GitHub-release template)"
-    },
-    {
-      "name": "handoff",
-      "source": "./claude/plugins/handoff",
-      "description": "Summarize the current state of a troubleshooting activity for the next agent"
-    },
-    {
-      "name": "watchlist",
-      "source": "./claude/plugins/watchlist",
-      "description": "Track upstream GitHub issues/PRs/releases and report movement since last check"
-    },
-    {
-      "name": "debug-lemonade",
-      "source": "./claude/plugins/debug-lemonade",
-      "description": "Runbook for diagnosing lemonade-server (lemond) problems on the Strix Halo box"
-    },
-    {
-      "name": "senior-frontend-refactor",
-      "source": "./claude/plugins/senior-frontend-refactor",
-      "description": "Refactor frontend code as a senior engineer, preserving behavior"
-    },
-    {
-      "name": "git-attribution",
-      "source": "./claude/plugins/git-attribution",
-      "description": "Enforce Linux-kernel AI attribution policy on git commits"
-    },
-    {
-      "name": "uv-develop",
-      "source": "./claude/plugins/uv-develop",
-      "description": "Day-to-day Python development with uv (sync --frozen, run -m pytest, add/remove) following TDD"
-    },
-    {
-      "name": "uv-setup",
-      "source": "./claude/plugins/uv-setup",
-      "description": "Bootstrap a new uv Python project — packaging, pinned Python, type checker, pre-commit hooks, Docker, and docs"
-    },
-    {
-      "name": "pre-commit-setup",
-      "source": "./claude/plugins/pre-commit-setup",
-      "description": "Stand up pre-commit with the standard hygiene hooks and install the git hook"
+      "name": "nvim-tools",
+      "source": "./claude/plugins/nvim-tools",
+      "description": "Personal toolkit bundling all skills: uv-setup, uv-develop, pre-commit-setup, git-attribution, add-ansible-role, senior-frontend-refactor, handoff, watchlist, debug-lemonade"
     }
   ]
 }
