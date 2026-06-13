@@ -1,6 +1,0 @@
-{
-  "name": "nvim-tools",
-  "description": "Personal toolkit: uv project setup/develop, pre-commit, git attribution guard, ansible role scaffolding, frontend refactor, handoff, watchlist, lemonade debugging",
-  "version": "0.1.0",
-  "author": { "name": "Brandon Guest" }
-}
