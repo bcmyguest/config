@@ -1,0 +1,6 @@
+{
+  "name": "git-attribution",
+  "description": "Enforce Linux-kernel AI attribution policy on git commits (Assisted-by trailer, no AI Signed-off-by)",
+  "version": "0.1.0",
+  "author": { "name": "Brandon Guest" }
+}

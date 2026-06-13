@@ -28,6 +28,11 @@
       "name": "senior-frontend-refactor",
       "source": "./claude/plugins/senior-frontend-refactor",
       "description": "Refactor frontend code as a senior engineer, preserving behavior"
+    },
+    {
+      "name": "git-attribution",
+      "source": "./claude/plugins/git-attribution",
+      "description": "Enforce Linux-kernel AI attribution policy on git commits"
     }
   ]
 }
