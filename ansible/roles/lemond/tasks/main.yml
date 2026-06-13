@@ -1,9 +1,40 @@
 # lemonade-server (lemond): local LLM server on port 13305.
 # Everything here needs become: true (set in nvim.yml).
-- name: add lemonade-team stable PPA
-  ansible.builtin.apt_repository:
-    repo: ppa:lemonade-team/stable
+# The classic `apt_repository: ppa:` task writes a keyless .list file; on noble
+# `add-apt-repository` writes a deb822 .sources with the key embedded. With both
+# present apt sees the same URI declared with conflicting Signed-By and bails:
+# "E:Conflicting values set for option Signed-By". We own a single canonical
+# deb822 source (key in files/lemonade-team.asc) and purge any legacy file.
+- name: find legacy lemonade PPA source files
+  ansible.builtin.find:
+    paths: /etc/apt/sources.list.d
+    patterns: ["*lemonade*", "ppa_lemonade*"]
+  register: lemond_legacy_sources
+
+- name: remove legacy lemonade PPA source files (avoid Signed-By conflict)
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ lemond_legacy_sources.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when: item.path != '/etc/apt/sources.list.d/lemonade-team-stable.sources'
+
+- name: add lemonade-team stable PPA (canonical deb822 source)
+  ansible.builtin.deb822_repository:
+    name: lemonade-team-stable
+    types: [deb]
+    uris: https://ppa.launchpadcontent.net/lemonade-team/stable/ubuntu/
+    suites: "{{ ansible_distribution_release }}"
+    components: [main]
+    signed_by: "{{ lookup('ansible.builtin.file', role_path + '/files/lemonade-team.asc') }}"
     state: present
+  register: lemond_ppa
+
+- name: refresh apt cache after PPA change
+  ansible.builtin.apt:
+    update_cache: true
+  when: lemond_ppa.changed
 
 - name: install lemonade-server
   ansible.builtin.apt:
