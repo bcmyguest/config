@@ -1,0 +1,8 @@
+{
+  "name": "debug-lemonade",
+  "description": "Runbook for diagnosing lemonade-server (lemond) problems on the Strix Halo box",
+  "version": "0.1.0",
+  "author": {
+    "name": "Brandon Guest"
+  }
+}

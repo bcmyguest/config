@@ -1,0 +1,4 @@
+{
+  "ansible_dir": "~/.config/nvim/ansible",
+  "playbook": "nvim.yml"
+}

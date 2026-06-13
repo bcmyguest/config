@@ -1,0 +1,18 @@
+{
+  "_comment": "Claude plugins to load on a new machine/install. Run claude/install-plugins.sh to apply.",
+  "marketplaces": [
+    { "name": "nvim-tools", "type": "local", "path": "." },
+    { "name": "anthropic-agent-skills", "type": "github", "path": "anthropics/skills" },
+    { "name": "caveman", "type": "github", "path": "JuliusBrussee/caveman" }
+  ],
+  "enable": [
+    "add-ansible-role@nvim-tools",
+    "handoff@nvim-tools",
+    "watchlist@nvim-tools",
+    "debug-lemonade@nvim-tools",
+    "senior-frontend-refactor@nvim-tools",
+    "caveman@caveman",
+    "document-skills@anthropic-agent-skills",
+    "example-skills@anthropic-agent-skills"
+  ]
+}

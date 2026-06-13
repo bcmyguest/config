@@ -1,0 +1,33 @@
+{
+  "name": "nvim-tools",
+  "owner": {
+    "name": "Brandon Guest"
+  },
+  "plugins": [
+    {
+      "name": "add-ansible-role",
+      "source": "./claude/plugins/add-ansible-role",
+      "description": "Add tool-install roles to a personal Ansible provisioning playbook (config-driven location, GitHub-release template)"
+    },
+    {
+      "name": "handoff",
+      "source": "./claude/plugins/handoff",
+      "description": "Summarize the current state of a troubleshooting activity for the next agent"
+    },
+    {
+      "name": "watchlist",
+      "source": "./claude/plugins/watchlist",
+      "description": "Track upstream GitHub issues/PRs/releases and report movement since last check"
+    },
+    {
+      "name": "debug-lemonade",
+      "source": "./claude/plugins/debug-lemonade",
+      "description": "Runbook for diagnosing lemonade-server (lemond) problems on the Strix Halo box"
+    },
+    {
+      "name": "senior-frontend-refactor",
+      "source": "./claude/plugins/senior-frontend-refactor",
+      "description": "Refactor frontend code as a senior engineer, preserving behavior"
+    }
+  ]
+}

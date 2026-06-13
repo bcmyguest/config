@@ -1,0 +1,116 @@
+# Template: GitHub-release-installed tool.
+# Placeholders: <TOOL> <GH_OWNER> <GH_REPO> <VERSION_CMD> <ASSET_NAME>
+# <ASSET_NAME> must embed {{ version_to_install }} when the filename contains the
+# version, and should be built from ansible facts (ansible_system /
+# ansible_architecture) when the playbook targets more than one platform.
+- name: get latest release of <TOOL>
+  community.general.github_release:
+    user: <GH_OWNER>
+    repo: <GH_REPO>
+    action: latest_release
+    prerelease: false
+  register: release
+- name: extract version from release
+  set_fact:
+    current_release: "{{ release.tag | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', multiline=True) }}"
+  check_mode: false
+  when:
+    - release is succeeded
+
+- name: get current version
+  ansible.builtin.command:
+    argv:
+      - <TOOL>
+      - --version
+  register: current_version
+  ignore_errors: true
+  changed_when: false
+  check_mode: false
+
+- name: extract version
+  set_fact:
+    current_version: "{{ current_version.stdout_lines[0] | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', multiline=True) }}"
+  check_mode: false
+  when:
+    - current_version is succeeded and current_version.stdout_lines is defined
+
+- name: extract version
+  set_fact:
+    current_version: "v{{ current_version }}"
+  check_mode: false
+
+- name: Show current version
+  debug:
+    var: current_version
+  when:
+    - current_version.rc is not defined
+
+- name: latest release
+  debug:
+    var: release.tag
+
+- name: pinned version
+  debug:
+    var: pinned_version
+
+- name: set version to install
+  set_fact:
+    version_to_install: "{{ release.tag }}"
+  when:
+    - pinned_version is not defined
+
+- name: set version to install
+  set_fact:
+    version_to_install: "{{ pinned_version }}"
+  when:
+    - pinned_version is defined
+
+- name: Show version to install
+  debug:
+    var: version_to_install
+- name: Installed correct version
+  debug:
+    var: version_to_install != current_version
+
+# Variant A: tarball wraps binaries in a top-level dir (uv, llama-cpp style).
+# For Variant B (bare binaries, opencode style): drop the tempfile/copy steps and
+# unarchive straight to "{{ ansible_env.HOME }}/.local/bin".
+- block:
+    - name: create temporary download directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: <TOOL>
+      register: tmpdir
+
+    - name: extract binary
+      ansible.builtin.unarchive:
+        src: "https://github.com/<GH_OWNER>/<GH_REPO>/releases/download/{{ version_to_install }}/<ASSET_NAME>"
+        dest: "{{ tmpdir.path }}"
+        mode: "0755"
+        remote_src: true
+
+    - name: copy binaries
+      ansible.builtin.copy:
+        src: "{{ tmpdir.path }}/<extracted-top-level-dir>/"
+        dest: "{{ ansible_env.HOME }}/.local/bin"
+
+    - name: find binary files
+      find:
+        paths: "{{ ansible_env.HOME }}/.local/bin"
+        file_type: file
+        patterns: "<TOOL>*"
+      register: filelist
+
+    # copy from a tempdir loses execute bits; restore them. owner/group from facts
+    # so this works under become and on any platform (no hardcoded uid 1000)
+    - name: change permissions
+      file:
+        path: "{{ item.path }}"
+        recurse: false
+        owner: "{{ ansible_user_uid }}"
+        group: "{{ ansible_user_gid }}"
+        mode: "0755"
+      with_items: "{{ filelist.files }}"
+  when:
+    - not ansible_check_mode
+    - version_to_install != current_version
