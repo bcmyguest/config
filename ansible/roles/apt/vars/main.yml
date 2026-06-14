@@ -17,5 +17,5 @@ packages:
   - libfuse2t64 # requires universe apt-repo `sudo add-apt-repository universe`
   - keychain
   - tree
-  - apt-transport-https
+  - git
   - xclip
