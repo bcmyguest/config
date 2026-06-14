@@ -11,6 +11,8 @@
       tags: [uv]
     - role: volta
       tags: [volta]
+    - role: cargo
+      tags: [cargo]
     - role: nerdfonts
       tags: [nerdfonts]
     - role: opencode

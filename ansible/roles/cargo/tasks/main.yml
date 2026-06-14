@@ -1,0 +1,58 @@
+# cargo / Rust toolchain via rustup.
+# rustup-init autodetects the platform and (by default) appends the cargo env
+# to the shell rc files, so PATH is handled by the official installer.
+
+- name: check for rustup
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.cargo/bin/rustup"
+  register: rustup_bin
+  check_mode: false
+
+- name: get current cargo version
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_env.HOME }}/.cargo/bin/cargo"
+      - --version
+  register: current_version
+  ignore_errors: true
+  changed_when: false
+  check_mode: false
+  when: rustup_bin.stat.exists
+
+- name: Show current cargo version
+  debug:
+    var: current_version.stdout
+  when:
+    - rustup_bin.stat.exists
+    - current_version.stdout is defined
+
+- name: install rustup + stable toolchain (provides cargo)
+  block:
+    - name: create temporary download directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: rustup
+      register: tmpdir
+
+    - name: download rustup-init
+      ansible.builtin.get_url:
+        url: https://sh.rustup.rs
+        dest: "{{ tmpdir.path }}/rustup-init.sh"
+        mode: "0755"
+
+    - name: run rustup-init (installs cargo/rustc into ~/.cargo/bin, adds to shell PATH)
+      ansible.builtin.command:
+        cmd: "{{ tmpdir.path }}/rustup-init.sh -y --default-toolchain stable --profile default"
+        creates: "{{ ansible_env.HOME }}/.cargo/bin/cargo"
+  when:
+    - not rustup_bin.stat.exists
+    - not ansible_check_mode
+
+- name: update rust stable toolchain
+  ansible.builtin.command:
+    cmd: "{{ ansible_env.HOME }}/.cargo/bin/rustup update stable"
+  register: rustup_update
+  changed_when: "'updated' in rustup_update.stdout or 'installing' in rustup_update.stdout"
+  when:
+    - rustup_bin.stat.exists
+    - not ansible_check_mode
