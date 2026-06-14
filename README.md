@@ -1,5 +1,3 @@
-[[_TOC_]]
-
 ## Installing nvim
 
 Install nvim with [ansible](./ansible/README.md) or manually.

@@ -5,20 +5,12 @@ Used to install important config for nvim
 Claude Code plugins for this setup live in `../claude/plugins/`; after cloning run
 `../claude/install-plugins.sh` to install them.
 
-Note: Most of this is copied from 1511/spectra-apps>
-
-[[_TOC_]]
-
 ## Installation steps
-
-The two first these steps are described below
 
 1. Install ansible and validate installation
 2. Apply the ansible playbook and validate
-3. Create a minikube cluster and validate
-4. Install all charts and validate
 
-Each steps needs validation (tools are provided) before jumping on the next steps.
+Each step needs validation (tools are provided) before moving on.
 
 ## Prerequisites
 
