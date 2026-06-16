@@ -1,3 +1,6 @@
+# llama.cpp prebuilt Vulkan binaries. Upstream only ships an x64 ubuntu-vulkan
+# tarball, so this role is x86_64-only by design. Binaries live outside ~/.local/bin
+# (their many .so files would clutter it), so the role adds the dir to PATH itself.
 - name: get latest release of llama.cpp
   community.general.github_release:
     user: ggml-org
@@ -5,123 +8,69 @@
     action: latest_release
     prerelease: false
   register: release
-- name: extract version from release
-  set_fact:
-    current_release: "{{ release.tag  }}"
-  check_mode: false
-  when:
-    - release is succeeded
 
-- name: get current version
+- name: choose version to install
+  set_fact:
+    version_to_install: "{{ pinned_version | default(release.tag) }}"
+  check_mode: false
+
+# Release tags look like "b9632"; the binary reports "version: 9632 (<sha>)".
+# Compare the numeric build id so the role is idempotent (previously it ran a
+# non-existent `llama.cpp` binary, so it re-downloaded on every run).
+- name: get current llama.cpp version
   ansible.builtin.command:
     argv:
-      - llama.cpp
+      - "{{ llama_cpp_dir }}/bin/llama-cli"
       - --version
-  register: current_version
-  ignore_errors: true
+  register: current_version_raw
+  failed_when: false
   changed_when: false
   check_mode: false
 
-- name: extract version
+- name: extract installed and target build ids
   set_fact:
-    current_version: "{{ current_version.stdout_lines[0]  }}"
-  check_mode: false
-  when:
-    - current_version is succeeded and current_version.stdout_lines is defined
-
-- name: extract version
-  set_fact:
-    current_version: "v{{ current_version }}"
+    current_build: "{{ (current_version_raw.stdout ~ '\n' ~ current_version_raw.stderr) | regex_search('version:\\s*([0-9]+)', '\\1') | first | default('') }}"
+    target_build: "{{ version_to_install | regex_search('[0-9]+') }}"
   check_mode: false
 
-- name: Show current version
+- name: show llama.cpp versions
   debug:
-    var: current_version
+    msg: "installed build={{ current_build | default('none') }} target={{ version_to_install }}"
+
+- name: install llama.cpp
   when:
-    - current_version.rc is not defined
-
-- name: latest release
-  debug:
-    var: release.tag
-
-- name: pinned version
-  debug:
-    var: pinned_version
-
-# should be either release.tag or neovim_pinned_version
-- name: set version to install
-  set_fact:
-    version_to_install: "{{ release.tag }}"
-  when:
-    - pinned_version is not defined
-
-- name: version_to_install
-  debug:
-    var: version_to_install
-
-- name: set version to install
-  set_fact:
-    version_to_install: "{{ pinned_version }}"
-  when:
-    - pinned_version is defined
-
-- name: Show version to install
-  debug:
-    var: version_to_install
-- name: Installed correct version
-  debug:
-    var: version_to_install != current_version
-- block:
+    - not ansible_check_mode
+    - target_build != current_build
+  block:
     - name: create temporary download directory
       ansible.builtin.tempfile:
         state: directory
         suffix: llama.cpp
       register: tmpdir
-    - name: show tmpdir
-      debug:
-        var: tmpdir
-    #
-    # - name: extract binary
-    #   ansible.builtin.unarchive:
-    #     src: "https://github.com/astral-sh/uv/releases/download/{{ version_to_install }}/uv-x86_64-unknown-linux-musl.tar.gz"
-    #     dest: "{{ tmpdir.path }}"
-    #     mode: "0755"
-    #     remote_src: true
-    # - name: copy binaries
-    #   ansible.builtin.copy:
-    #     src: "{{ tmpdir.path }}/uv-x86_64-unknown-linux-musl/"
-    #     dest: "{{ ansible_env.HOME }}/.local/bin"
-    #
-    - name: extract binary
+
+    - name: download and extract release
       ansible.builtin.unarchive:
-        src: "https://github.com/ggml-org/llama.cpp/releases/download/{{ version_to_install }}/llama-{{version_to_install}}-bin-ubuntu-vulkan-x64.tar.gz"
+        src: "https://github.com/ggml-org/llama.cpp/releases/download/{{ version_to_install }}/llama-{{ version_to_install }}-bin-ubuntu-vulkan-x64.tar.gz"
         dest: "{{ tmpdir.path }}"
-        mode: "0755"
         remote_src: true
 
-    - name: copy binaries
-      ansible.builtin.copy:
-        src: "{{ tmpdir.path }}/llama-{{version_to_install}}/"
-        dest: "{{ ansible_env.HOME }}/.local/llama-cpp/bin"
-    - name: find binary files
-      find:
-        paths: "{{ ansible_env.HOME }}/.local/llama-cpp/bin"
-        file_type: file
-        patterns: "*"
-      register: filelist
+    # Wipe first so old library versions (libggml-base.so.0.9.x ...) don't pile up.
+    - name: reset llama.cpp bin directory
+      ansible.builtin.file:
+        path: "{{ llama_cpp_dir }}/bin"
+        state: absent
 
-    - name: change permissions
-      file:
-        path: "{{ item.path }}"
-        recurse: false
-        owner: 1000
-        group: 1000
-        mode: "0755"
-      with_items: "{{ filelist.files }}"
-    # TODO this doesn't work, need to update bashrc
-    - name: add llama.cpp to PATH
-      ansible.builtin.shell:
-        cmd: "export PATH=$PATH:{{ extra_path }}"
-  when:
-    - not ansible_check_mode
-    - version_to_install != current_version
+    - name: install binaries
+      ansible.builtin.copy:
+        src: "{{ tmpdir.path }}/llama-{{ version_to_install }}/"
+        dest: "{{ llama_cpp_dir }}/bin/"
+        mode: preserve
+        owner: "{{ ansible_user_id }}"
+
+# Done outside the install block so PATH is ensured even when already up to date.
+# (The old `export PATH=...` shell task ran in a throwaway subshell and did nothing.)
+- name: add llama.cpp to PATH (bash)
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    line: 'export PATH="$PATH:{{ llama_cpp_dir }}/bin"'
+    create: true

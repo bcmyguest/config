@@ -1,0 +1,7 @@
+---
+openwebui_image: ghcr.io/open-webui/open-webui:main
+openwebui_container_name: open-webui
+openwebui_data_volume: open-webui
+# Baked-in ollama endpoint. The lemond (OpenAI-compatible) connection is configured
+# inside the UI and stored in the data volume, not here — see README.
+openwebui_ollama_base_url: http://0.0.0.0:11434

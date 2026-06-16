@@ -1,7 +1,8 @@
 ---
 - name: install apt packages
   ansible.builtin.apt:
-    name: "{{ item }}"
+    name: "{{ packages }}"
     state: latest
-  with_items: "{{ packages }}"
+    update_cache: true
+    cache_valid_time: 3600
   become: true

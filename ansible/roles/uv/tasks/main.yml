@@ -1,3 +1,8 @@
+- name: set uv target triple for this architecture
+  set_fact:
+    uv_target: "uv-{{ 'aarch64' if ansible_architecture == 'aarch64' else 'x86_64' }}-unknown-linux-musl"
+  check_mode: false
+
 - name: get latest release of uv
   community.general.github_release:
     user: astral-sh
@@ -83,33 +88,16 @@
 
     - name: extract binary
       ansible.builtin.unarchive:
-        src: "https://github.com/astral-sh/uv/releases/download/{{ version_to_install }}/uv-x86_64-unknown-linux-musl.tar.gz"
+        src: "https://github.com/astral-sh/uv/releases/download/{{ version_to_install }}/{{ uv_target }}.tar.gz"
         dest: "{{ tmpdir.path }}"
         mode: "0755"
         remote_src: true
     - name: copy binaries
       ansible.builtin.copy:
-        src: "{{ tmpdir.path }}/uv-x86_64-unknown-linux-musl/"
+        src: "{{ tmpdir.path }}/{{ uv_target }}/"
         dest: "{{ ansible_env.HOME }}/.local/bin"
-    - name: Change uvx owner
-      file:
-        path: "{{ ansible_env.HOME }}/.local/bin/uvx"
-        state: file
-        recurse: false
-        owner: 1000
-        group: 1000
-        mode: "0755"
-    - name: Change uv owner
-      file:
-        path: "{{ ansible_env.HOME }}/.local/bin/uv"
-        state: file
-        recurse: false
-        owner: 1000
-        group: 1000
-        mode: "0755"
-    - name: add uv to PATH
-      ansible.builtin.shell:
-        cmd: "export PATH=$PATH:{{ extra_path }}"
+        mode: preserve
+        owner: "{{ ansible_user_id }}"
   when:
     - not ansible_check_mode
     - version_to_install != current_version

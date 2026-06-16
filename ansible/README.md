@@ -98,8 +98,11 @@ lemond is installed by the `lemond` role (`--tags lemond`); full service docs in
 [docs/lemond.md](docs/lemond.md), ROCm/GPU notes in
 [docs/rocm-strix-halo.md](docs/rocm-strix-halo.md).
 
-Open WebUI is the chat frontend for lemond. It is **not** managed by ansible — it runs
-as a docker container with host networking and a named data volume:
+Open WebUI is the chat frontend for lemond, managed by the `openwebui` role
+(`--tags openwebui`). The role pulls `ghcr.io/open-webui/open-webui:main` and runs it as
+a docker container with host networking and a named `open-webui` data volume,
+recreating it only when the image updates (the volume survives, so settings persist).
+Equivalent manual command:
 
 ```
 docker run -d --name open-webui --network host --restart always \
@@ -118,9 +121,11 @@ docker run -d --name open-webui --network host --restart always \
   the OpenAI connection. If lemond models vanish from the picker, see the port-race
   gotcha in [docs/lemond.md](docs/lemond.md).
 - Host networking means the container reaches lemond on plain `localhost:13305`.
+- Docker (`geerlingguy.docker` role) must be installed first; the `openwebui` role talks
+  to docker as root, so it runs with `become`.
 
 ## Also not installed in ansible (yet)
 
 - chezmoi
-- apt repo "universe"
-- Open WebUI container (documented above, created manually)
+- apt repo "universe" (needed for `libfuse2t64`; enable with
+  `sudo add-apt-repository universe`)

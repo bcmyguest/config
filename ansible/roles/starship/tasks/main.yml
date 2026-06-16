@@ -1,17 +1,20 @@
-- name: Check if Starship is already installed
-  command: starship --version
+- name: check whether starship is installed
+  ansible.builtin.command: starship --version
   register: starship_version
-  ignore_errors: true
+  failed_when: false
   changed_when: false
-# clearly this doesn't work
-- name: Install Starship using the official install script
-  shell: curl -sS https://starship.rs/install.sh | sh
-  become: true
-  when: starship_version.rc is defined and starship_version.rc != 0
+  check_mode: false
 
-- name: Source starship in shell configuration (bash)
-  lineinfile:
+# `--yes` skips the installer's interactive confirmation (would hang with no TTY).
+# Runs as root so the binary lands in /usr/local/bin (already on PATH).
+- name: install starship using the official install script
+  ansible.builtin.shell:
+    cmd: curl -sS https://starship.rs/install.sh | sh -s -- --yes
+  become: true
+  when: starship_version.rc | default(1) != 0
+
+- name: enable starship in shell configuration (bash)
+  ansible.builtin.lineinfile:
     path: "{{ ansible_env.HOME }}/.bashrc"
     line: 'eval "$(starship init bash)"'
-    create: yes
-  when: starship_version.rc == 0
+    create: true

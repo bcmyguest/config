@@ -1,21 +1,19 @@
-- name: get latest release of opencode
+# mise (jdx/mise): polyglot tool-version manager. Replaces volta for node and can
+# manage python/uv/etc. Ships a single static (musl) binary wrapped in a top-level
+# mise/ dir. Tag is "vYYYY.M.D"; the binary reports the bare calver, so the v-prefix
+# below makes the comparison line up.
+- name: get latest release of mise
   community.general.github_release:
-    user: sst
-    repo: opencode
+    user: jdx
+    repo: mise
     action: latest_release
     prerelease: false
   register: release
-- name: extract version from release
-  set_fact:
-    current_release: "{{ release.tag | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', multiline=True) }}"
-  check_mode: false
-  when:
-    - release is succeeded
 
 - name: get current version
   ansible.builtin.command:
     argv:
-      - opencode
+      - mise
       - --version
   register: current_version
   ignore_errors: true
@@ -48,16 +46,11 @@
   debug:
     var: pinned_version
 
-# should be either release.tag or neovim_pinned_version
 - name: set version to install
   set_fact:
     version_to_install: "{{ release.tag }}"
   when:
     - pinned_version is not defined
-
-- name: version_to_install
-  debug:
-    var: version_to_install
 
 - name: set version to install
   set_fact:
@@ -68,25 +61,36 @@
 - name: Show version to install
   debug:
     var: version_to_install
-- name: Installed correct version
-  debug:
-    var: version_to_install != current_version
+
 - block:
     - name: create temporary download directory
       ansible.builtin.tempfile:
         state: directory
-        suffix: opencode
+        suffix: mise
       register: tmpdir
-    - name: show tmpdir
-      debug:
-        var: tmpdir
 
-    - name: extract binary
+    - name: extract release
       ansible.builtin.unarchive:
-        src: "https://github.com/sst/opencode/releases/download/{{ version_to_install }}/opencode-linux-{{ 'arm64' if ansible_architecture == 'aarch64' else 'x64-baseline' }}.tar.gz"
-        dest: "{{ ansible_env.HOME }}/.local/bin"
-        mode: "0755"
+        src: "https://github.com/jdx/mise/releases/download/{{ version_to_install }}/mise-{{ version_to_install }}-linux-{{ 'arm64' if ansible_architecture == 'aarch64' else 'x64' }}-musl.tar.gz"
+        dest: "{{ tmpdir.path }}"
         remote_src: true
+
+    # Copy just the binary into ~/.local/bin (on PATH); mode/owner set explicitly
+    # because copying out of a tempdir drops the execute bit.
+    - name: install mise binary
+      ansible.builtin.copy:
+        src: "{{ tmpdir.path }}/mise/bin/mise"
+        dest: "{{ ansible_env.HOME }}/.local/bin/mise"
+        mode: "0755"
+        owner: "{{ ansible_user_id }}"
   when:
     - not ansible_check_mode
     - version_to_install != current_version
+
+# Activation hook installs mise's shims so it actually manages tool versions in new
+# bash shells (the equivalent of what `volta` did for node's PATH).
+- name: activate mise in shell configuration (bash)
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    line: 'eval "$(mise activate bash)"'
+    create: true

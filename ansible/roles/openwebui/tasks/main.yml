@@ -1,0 +1,58 @@
+# Open WebUI: the chat frontend for lemond/ollama. Runs as a docker container with
+# host networking so it reaches lemond on localhost:13305 and ollama on :11434.
+#
+# Managed via the docker CLI rather than community.docker.docker_container on purpose:
+# ansible is installed in a pipx venv and runs against localhost with the local
+# connection, so modules execute under that venv's interpreter, which cannot import the
+# system-wide docker SDK for python. The CLI needs only the docker binary (geerlingguy
+# .docker) and mirrors the documented `docker run` exactly.
+#
+# This role expects become: true (set in the playbook) so docker is reachable as root.
+- name: pull open-webui image
+  ansible.builtin.command:
+    cmd: "docker pull {{ openwebui_image }}"
+  register: openwebui_pull
+  changed_when: "'Downloaded newer image' in openwebui_pull.stdout"
+  when: not ansible_check_mode
+
+- name: get the image id the running container was created from
+  ansible.builtin.command:
+    cmd: "docker container inspect --format '{% raw %}{{.Image}}{% endraw %}' {{ openwebui_container_name }}"
+  register: openwebui_running_image
+  changed_when: false
+  failed_when: false
+
+- name: get the image id of the desired tag
+  ansible.builtin.command:
+    cmd: "docker image inspect --format '{% raw %}{{.Id}}{% endraw %}' {{ openwebui_image }}"
+  register: openwebui_target_image
+  changed_when: false
+  failed_when: false
+
+# Recreate when the container is missing or running an older image. The named data
+# volume survives recreation, so in-UI settings (incl. the lemond connection) persist.
+- name: (re)create open-webui container
+  ansible.builtin.shell:
+    cmd: |
+      docker rm -f {{ openwebui_container_name }} >/dev/null 2>&1 || true
+      docker run -d \
+        --name {{ openwebui_container_name }} \
+        --network host \
+        --restart always \
+        -e OLLAMA_BASE_URL={{ openwebui_ollama_base_url }} \
+        -v {{ openwebui_data_volume }}:/app/backend/data \
+        {{ openwebui_image }}
+  when:
+    - not ansible_check_mode
+    - openwebui_running_image.rc != 0 or openwebui_running_image.stdout != openwebui_target_image.stdout
+
+- name: wait for open-webui to listen on :8080
+  ansible.builtin.wait_for:
+    port: 8080
+    delay: 2
+    timeout: 180
+  when: not ansible_check_mode
+
+- name: show open-webui status
+  debug:
+    msg: "open-webui up at http://{{ ansible_default_ipv4.address | default('localhost') }}:8080"

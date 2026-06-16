@@ -9,8 +9,8 @@
       tags: [lua]
     - role: uv
       tags: [uv]
-    - role: volta
-      tags: [volta]
+    - role: mise
+      tags: [mise]
     - role: cargo
       tags: [cargo]
     - role: nerdfonts
@@ -26,4 +26,7 @@
       become: true
     - role: lemond
       tags: [lemond]
+      become: true
+    - role: openwebui
+      tags: [openwebui]
       become: true

@@ -93,11 +93,8 @@
         - lua_check is succeeded and lua_check.stdout_lines is defined
     - name: fail if lua version is not correct
       ansible.builtin.fail:
-        msg: "Lua version is not correct"
-      when:
-        - lua_check is not defined
-        - lua_check is not succeeded
-        - lua_check != "{{ lua_version }}"
+        msg: "Lua {{ lua_check | default('unknown') }} installed, expected {{ lua_version }}"
+      when: lua_check != lua_version
 
   when:
     - not ansible_check_mode

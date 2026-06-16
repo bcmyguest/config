@@ -1,1 +1,2 @@
-extra_path: /home/b/.llama-cpp/bin
+---
+llama_cpp_dir: "{{ ansible_env.HOME }}/.local/llama-cpp"
