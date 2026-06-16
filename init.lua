@@ -3,6 +3,18 @@ vim.g.loaded_netrwPlugin = 1
 
 vim.opt.number           = true  -- absolute line number for the line you are on
 vim.opt.relativenumber   = false -- relative line numbers
+
+-- Editing creature comforts
+vim.opt.undofile         = true     -- persistent undo across sessions
+vim.opt.ignorecase       = true     -- case-insensitive search...
+vim.opt.smartcase        = true     -- ...unless the query has uppercase
+vim.opt.scrolloff        = 8        -- keep context above/below the cursor
+vim.opt.signcolumn       = "yes"    -- always show sign column (no gutter jitter)
+vim.opt.splitright       = true     -- vertical splits open to the right
+vim.opt.splitbelow       = true     -- horizontal splits open below
+vim.opt.mouse            = "a"      -- mouse in all modes
+vim.opt.winborder        = "rounded" -- default border for all floats (hover, signature, etc.)
+
 vim.diagnostic.config({
 	virtual_lines = {
 		current_line = true,
@@ -24,7 +36,7 @@ vim.diagnostic.config({
 	},
 	severity_sort = true,
 })
-vim.api.nvim_set_option("clipboard", "unnamed")
+vim.opt.clipboard = "unnamedplus" -- use system clipboard (Ctrl-C/V interop on Linux)
 require("config.lazy")
 require("config.telescope")  -- require telescope
 require("mason").setup()     -- require mason

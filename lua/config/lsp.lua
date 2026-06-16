@@ -33,13 +33,8 @@ local function get_python_path()
 	return vim.fn.exepath("python3") or vim.fn.exepath("python") or "python"
 end
 
--- Formatting for hover and signature help
-vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(vim.lsp.handlers.hover, {
-	border = "rounded",
-})
-vim.lsp.handlers["textDocument/signatureHelp"] = vim.lsp.with(vim.lsp.handlers.hover, {
-	border = "rounded",
-})
+-- Hover/signature/float borders are set globally via `vim.o.winborder` in
+-- init.lua (the old `vim.lsp.handlers[...] = vim.lsp.with(...)` API is deprecated).
 vim.lsp.config["lua_ls"] = {
 	capabilities = lsp_capabilities,
 	filetypes = { "lua" },
@@ -65,7 +60,7 @@ vim.lsp.config["lua_ls"] = {
 vim.lsp.config["yamlls"] = {
 	capabilities = lsp_capabilities,
 	filetypes = { "yaml", "yaml.docker-compose", "yaml.gitlab" },
-	setings = {
+	settings = {
 		yaml = {
 			filetypes = { "yaml", "yaml.docker-compose", "yaml.gitlab", "yml" },
 			{
@@ -196,7 +191,7 @@ vim.lsp.config["basedpyright"] = {
 		vim.notify(python_path)
 	end,
 	settings = {
-		filetypes = { "python", "juptyer", "ipynb", "py", "pyc" },
+		filetypes = { "python", "jupyter", "ipynb", "py", "pyc" },
 		basedpyright = {
 			-- Using Ruff's import organizer
 			disableOrganizeImports = true,
@@ -213,7 +208,7 @@ vim.lsp.config["basedpyright"] = {
 				autoIndent = true,
 				autoSearchPaths = true,
 				autoFormatStrings = true,
-				diagnoticMode = 'openFilesOnly',
+				diagnosticMode = 'openFilesOnly',
 				inlayHints = {
 					functionReturnTypes = true,
 					genericTypes = true,
@@ -236,8 +231,24 @@ vim.lsp.config["basedpyright"] = {
 }
 
 vim.lsp.enable({ "lua_ls", "basedpyright", "ruff", "ts_ls", "jsonls", "yamlls", "eslint", "clangd" })
--- auto-format on save
-vim.cmd [[autocmd BufWritePre * lua vim.lsp.buf.format()]]
+-- auto-format on save, but only when an attached client can actually format
+-- (the old blind `vim.lsp.buf.format()` ran on every buffer and could hang).
+vim.api.nvim_create_autocmd("BufWritePre", {
+	group = vim.api.nvim_create_augroup("lsp_format_on_save", { clear = true }),
+	callback = function(args)
+		local has_formatter = false
+		for _, client in ipairs(vim.lsp.get_clients({ bufnr = args.buf })) do
+			if client:supports_method("textDocument/formatting", args.buf) then
+				has_formatter = true
+				break
+			end
+		end
+		if has_formatter then
+			vim.lsp.buf.format({ bufnr = args.buf, timeout_ms = 2000 })
+		end
+	end,
+	desc = "LSP: format on save when supported",
+})
 
 
 vim.api.nvim_create_autocmd('LspAttach', {

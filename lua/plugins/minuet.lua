@@ -1,6 +1,6 @@
 -- minuet-ai.nvim — LLM code completion, pointed at the local lemonade server.
--- Manual only: nothing completes as-you-type. Trigger a suggestion with <A-]>,
--- or flip on auto-as-you-type per buffer with <leader>mt.
+-- Manual only: nothing completes as-you-type. Trigger a suggestion with <A-y>
+-- (insert mode), or flip on auto-as-you-type per buffer with <leader>mt.
 return {
 	"milanglacier/minuet-ai.nvim",
 	cmd = "Minuet",
