@@ -39,7 +39,7 @@
 - name: install lemonade-server
   ansible.builtin.apt:
     name: "lemonade-server{% if lemond_pinned_version is defined %}={{ lemond_pinned_version }}{% endif %}"
-    state: present
+    state: latest
     update_cache: true
 
 # The package ships BOTH a system unit and an enabled-by-default USER unit. The user
