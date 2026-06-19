@@ -17,6 +17,8 @@
       tags: [nerdfonts]
     - role: opencode
       tags: [opencode]
+    - role: tree-sitter
+      tags: [tree-sitter]
     - role: llama-cpp
       tags: [llama-cpp]
     - role: starship

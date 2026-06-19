@@ -1,0 +1,82 @@
+- name: get latest release of tree-sitter
+  community.general.github_release:
+    user: tree-sitter
+    repo: tree-sitter
+    action: latest_release
+    prerelease: false
+  register: release
+- name: extract version from release
+  set_fact:
+    current_release: "{{ release.tag | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', multiline=True) }}"
+  check_mode: false
+  when:
+    - release is succeeded
+
+- name: get current version
+  ansible.builtin.command:
+    argv:
+      - tree-sitter
+      - --version
+  register: current_version
+  ignore_errors: true
+  changed_when: false
+  check_mode: false
+
+- name: extract version
+  set_fact:
+    current_version: "{{ current_version.stdout_lines[0] | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', multiline=True) }}"
+  check_mode: false
+  when:
+    - current_version is succeeded and current_version.stdout_lines is defined
+
+- name: extract version
+  set_fact:
+    current_version: "v{{ current_version }}"
+  check_mode: false
+
+- name: Show current version
+  debug:
+    var: current_version
+  when:
+    - current_version.rc is not defined
+
+- name: latest release
+  debug:
+    var: release.tag
+
+- name: pinned version
+  debug:
+    var: pinned_version
+
+- name: set version to install
+  set_fact:
+    version_to_install: "{{ release.tag }}"
+  when:
+    - pinned_version is not defined
+
+- name: set version to install
+  set_fact:
+    version_to_install: "{{ pinned_version }}"
+  when:
+    - pinned_version is defined
+
+- name: Show version to install
+  debug:
+    var: version_to_install
+- name: Installed correct version
+  debug:
+    var: version_to_install != current_version
+
+# Asset is a zip wrapping a single bare `tree-sitter` binary; unarchive it
+# straight into ~/.local/bin (Variant B). asset arch follows ansible facts:
+# tree-sitter uses x64/arm64 naming, not x86_64/aarch64.
+- block:
+    - name: extract binary
+      ansible.builtin.unarchive:
+        src: "https://github.com/tree-sitter/tree-sitter/releases/download/{{ version_to_install }}/tree-sitter-cli-linux-{{ 'arm64' if ansible_architecture == 'aarch64' else 'x64' }}.zip"
+        dest: "{{ ansible_env.HOME }}/.local/bin"
+        mode: "0755"
+        remote_src: true
+  when:
+    - not ansible_check_mode
+    - version_to_install != current_version
