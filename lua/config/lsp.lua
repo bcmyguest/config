@@ -3,6 +3,11 @@ local mason_lspconfig = require("mason-lspconfig")
 mason_lspconfig.setup {
 	ensure_installed = { "lua_ls", "rust_analyzer", "jsonls", "ruff", "basedpyright", "eslint", "ts_ls", "yamlls", "clangd" },
 	automatic_install = true,
+	-- mason auto-enables every installed server by default. Exclude the Python
+	-- type checkers so they aren't force-enabled behind our backs — the
+	-- conditional vim.lsp.enable() below picks exactly one (pyrefly when the
+	-- venv provides it, else basedpyright).
+	automatic_enable = { exclude = { "basedpyright", "pyrefly" } },
 }
 
 -- -- despite changes to lsp in 0.11, this is still needed.
@@ -230,7 +235,46 @@ vim.lsp.config["basedpyright"] = {
 	},
 }
 
-vim.lsp.enable({ "lua_ls", "basedpyright", "ruff", "ts_ls", "jsonls", "yamlls", "eslint", "clangd" })
+-- Resolve a binary from the active virtualenv when one is set, else fall back
+-- to PATH. Mirrors get_python_path()'s venv-first assumption.
+local function get_venv_bin(name)
+	if vim.env.VIRTUAL_ENV then
+		return path.join(vim.env.VIRTUAL_ENV, "bin", name)
+	end
+	local found = vim.fn.exepath(name)
+	return found ~= "" and found or name
+end
+
+-- pyrefly — fast Rust-based Python type checker. filetypes/root_markers come
+-- from nvim-lspconfig's bundled config; we point cmd at the project venv's
+-- pyrefly (installed per-project, e.g. `uv add --dev pyrefly`) and add
+-- completion caps + inlay hints.
+-- NOTE: overlaps with basedpyright (both type-check Python) — expect duplicate
+-- diagnostics until one is disabled.
+vim.lsp.config["pyrefly"] = {
+	cmd = { get_venv_bin("pyrefly"), "lsp" },
+	capabilities = lsp_capabilities,
+	-- pyrefly reads inlay-hint config from workspace/configuration (i.e. nvim's
+	-- `settings`), under a top-level `analysis.inlayHints`. variableTypes /
+	-- functionReturnTypes default true; callArgumentNames defaults "off".
+	settings = {
+		analysis = {
+			inlayHints = {
+				variableTypes = true,
+				functionReturnTypes = true,
+				callArgumentNames = "all", -- "all" | "partial" | "off"
+				pytestParameters = true,
+			},
+		},
+	},
+}
+
+-- Python type checker: prefer pyrefly when the active venv provides it, else
+-- fall back to basedpyright. Never both (avoids duplicate diagnostics/hover).
+-- Decided at startup from the launch-time venv, like get_python_path().
+local python_lsp = (vim.fn.executable(get_venv_bin("pyrefly")) == 1) and "pyrefly" or "basedpyright"
+
+vim.lsp.enable({ "lua_ls", python_lsp, "ruff", "ts_ls", "jsonls", "yamlls", "eslint", "clangd" })
 -- auto-format on save, but only when an attached client can actually format
 -- (the old blind `vim.lsp.buf.format()` ran on every buffer and could hang).
 vim.api.nvim_create_autocmd("BufWritePre", {
