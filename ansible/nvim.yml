@@ -19,16 +19,7 @@
       tags: [opencode]
     - role: tree-sitter
       tags: [tree-sitter]
-    - role: llama-cpp
-      tags: [llama-cpp]
     - role: starship
       tags: [starship]
-    - role: geerlingguy.docker
-      tags: [docker]
-      become: true
-    - role: lemond
-      tags: [lemond]
-      become: true
-    - role: openwebui
-      tags: [openwebui]
-      become: true
+# AI inference (docker, llama-cpp, lemond, openwebui) is opt-in and lives in
+# ai-inference.yml, off the default provisioning path.

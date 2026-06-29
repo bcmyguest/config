@@ -1,0 +1,32 @@
+---
+# Optional, opt-in AI inference stack. NOT run by nvim.yml, so a plain
+# provisioning run installs only the editor + dev toolchain. Run the whole
+# stack explicitly:
+#
+#   ansible-playbook ai-inference.yml --ask-become-pass
+#
+# or a single piece via tags, e.g.:
+#
+#   ansible-playbook ai-inference.yml --tags lemond --ask-become-pass
+#
+# Pieces:
+#   - docker      docker engine (geerlingguy.docker); lemond/openwebui need it
+#   - llama-cpp   llama.cpp server build
+#   - lemond      lemonade-server (OpenAI-compatible local LLM serving)
+#   - openwebui   chat frontend for lemond/ollama (docker container)
+#
+# ollama itself is NOT installed here. If you want it, drop the systemd
+# override at ../ollama.service.d/override.conf into the ollama unit by hand.
+- hosts: localhost
+  roles:
+    - role: geerlingguy.docker
+      tags: [docker]
+      become: true
+    - role: llama-cpp
+      tags: [llama-cpp]
+    - role: lemond
+      tags: [lemond]
+      become: true
+    - role: openwebui
+      tags: [openwebui]
+      become: true

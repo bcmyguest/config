@@ -94,6 +94,18 @@ ansible-playbook nvim.yml --ask-become-pass
 
 ## lemond (lemonade-server) + Open WebUI
 
+The AI inference stack is **opt-in** and lives in its own playbook,
+`ai-inference.yml` — `nvim.yml` installs only the editor + dev toolchain. Run the
+whole stack, or one piece by tag:
+
+```
+ansible-playbook ai-inference.yml --ask-become-pass               # docker + llama-cpp + lemond + openwebui
+ansible-playbook ai-inference.yml --tags lemond --ask-become-pass # just lemond
+```
+
+ollama is not installed by ansible; drop `../ollama.service.d/override.conf` into
+the ollama unit by hand if you run it.
+
 lemond is installed by the `lemond` role (`--tags lemond`); full service docs in
 [docs/lemond.md](docs/lemond.md), ROCm/GPU notes in
 [docs/rocm-strix-halo.md](docs/rocm-strix-halo.md).
