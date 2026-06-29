@@ -20,55 +20,33 @@ packages:
   - git
   - xclip
 
-# Self-healing third-party apt repos. Every run re-fetches the signing key into
-# /etc/apt/keyrings/<name>.gpg and writes a deb822 .sources file pinned to it via
-# Signed-By, so missing / expired / rotated keys repair themselves and the legacy
-# trusted.gpg (apt-key) deprecation warning goes away. The matching legacy .list
-# (if any) is removed to avoid "E:Conflicting values set for option Signed-By".
-#
-# These repos are installed on EVERY box this role runs against — trim the list
-# to what a given machine should actually have.
-#
-# Flat repo: omit `components` and set `suites: "/"` (e.g. kubernetes).
-# Launchpad PPA: give `ppa: owner/name` instead of `key_url`; the signing-key
-# fingerprint is resolved from the Launchpad API at runtime (no hardcoding).
-#
-# OS codename/version come from gathered facts, not literals, so the same list
-# works on jammy/noble/etc:
-#   {{ ansible_distribution_release }}  -> jammy, noble, ...
-#   {{ ansible_distribution_version }}  -> 22.04, 24.04, ...
-# (spotify's `stable` is its own suite, not an OS codename; kubernetes `v1.28` is
-# a k8s version — both stay literal.)
+# Third-party vendor repos. ansible.builtin.deb822_repository fetches the key at
+# `signed_by`, dearmors it into /etc/apt/keyrings/<name>.gpg, and writes the
+# .sources pinned via Signed-By — no manual gpg / keyserver / dearmor handling.
+# OS codename/version come from facts so the list is release-agnostic.
 apt_repos:
-  # The pubkey_<KEYID>.gpg filename is Spotify's own convention (no "latest"
-  # alias); the id below is the one published at https://www.spotify.com/download/linux/.
-  # If Spotify rotates the key, apt errors NO_PUBKEY with the new id — read it off
-  # `dists/stable/InRelease` (gpg --list-packets shows the issuer keyid) and bump it.
   - name: spotify
-    key_url: https://download.spotify.com/debian/pubkey_6224F9941A8AA6D1.gpg
-    uri: https://repository.spotify.com
+    uris: https://repository.spotify.com
     suites: stable
     components: non-free
+    # Spotify names the key file by its current key id (no "latest" alias); this
+    # is the id published at https://www.spotify.com/download/linux/. On rotation
+    # apt prints NO_PUBKEY <newid> — bump the filename to pubkey_<newid>.gpg.
+    signed_by: https://download.spotify.com/debian/pubkey_5384CE82BA52C83A.gpg
 
   - name: microsoft-prod
-    key_url: https://packages.microsoft.com/keys/microsoft.asc
-    uri: "https://packages.microsoft.com/ubuntu/{{ ansible_distribution_version }}/prod"
+    uris: "https://packages.microsoft.com/ubuntu/{{ ansible_distribution_version }}/prod"
     suites: "{{ ansible_distribution_release }}"
     components: main
+    signed_by: https://packages.microsoft.com/keys/microsoft.asc
 
   - name: kubernetes
-    key_url: https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key
-    uri: https://pkgs.k8s.io/core:/stable:/v1.28/deb/
+    uris: "https://pkgs.k8s.io/core:/stable:/v1.28/deb/"
     suites: "/"
+    signed_by: https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key
 
-  - name: chromium-beta
-    ppa: saiarcot895/chromium-beta
-    uri: https://ppa.launchpadcontent.net/saiarcot895/chromium-beta/ubuntu
-    suites: "{{ ansible_distribution_release }}"
-    components: main
-
-  - name: graphics-drivers
-    ppa: graphics-drivers/ppa
-    uri: https://ppa.launchpadcontent.net/graphics-drivers/ppa/ubuntu
-    suites: "{{ ansible_distribution_release }}"
-    components: main
+# Launchpad PPAs. ansible.builtin.apt_repository installs the repo AND its signing
+# key from Launchpad automatically — nothing to fetch or pin by hand.
+# (saiarcot895/chromium-beta dropped: no noble build.)
+apt_ppas:
+  - graphics-drivers/ppa

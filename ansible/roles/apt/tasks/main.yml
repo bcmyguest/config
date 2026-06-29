@@ -1,94 +1,55 @@
 ---
-# --- self-healing third-party signing keys + deb822 sources -----------------
-# Re-fetch each repo's signing key and (re)write a deb822 source pinned to it, so
-# missing / expired / rotated keys and the legacy apt-key deprecation all heal on
-# a normal run. See vars/main.yml for the apt_repos schema.
+# Third-party repos via built-in modules: deb822_repository fetches + dearmors the
+# signing key and writes a Signed-By .sources; apt_repository handles PPAs and
+# their Launchpad keys. No manual gpg, keyserver, or NO_PUBKEY parsing.
 
-- name: ensure apt keyrings dir exists
-  ansible.builtin.file:
-    path: /etc/apt/keyrings
-    state: directory
-    mode: "0755"
-  become: true
+# deb822_repository parses sources with python-debian, which must live in the
+# interpreter ansible runs modules under (the pipx venv) — install it there.
+- name: ensure python-debian is available to ansible (deb822_repository dependency)
+  ansible.builtin.pip:
+    name: python-debian
+    state: present
 
-- name: resolve PPA signing-key fingerprints from Launchpad
-  ansible.builtin.uri:
-    url: "https://api.launchpad.net/devel/~{{ item.ppa.split('/')[0] }}/+archive/ubuntu/{{ item.ppa.split('/')[1] }}"
-    return_content: true
-  register: ppa_meta
+# Pin repos to this machine's real arch so amd64-only repos stop emitting i386
+# acquire warnings when i386 is a foreign arch. Derived, not hardcoded.
+- name: detect the system dpkg architecture
+  ansible.builtin.command: dpkg --print-architecture
+  register: dpkg_arch
   changed_when: false
-  loop: "{{ apt_repos | selectattr('ppa', 'defined') | list }}"
-  loop_control:
-    label: "{{ item.ppa }}"
 
-- name: map PPA name -> fingerprint
-  ansible.builtin.set_fact:
-    ppa_fpr: "{{ ppa_fpr | default({}) | combine({ item.item.name: item.json.signing_key_fingerprint }) }}"
-  loop: "{{ ppa_meta.results | default([]) }}"
-  loop_control:
-    label: "{{ item.item.name }}"
-
-- name: install repo signing keys (direct URL)
-  ansible.builtin.get_url:
-    url: "{{ item.key_url }}"
-    dest: "/etc/apt/keyrings/{{ item.name }}.gpg"
-    mode: "0644"
-    force: true
+- name: manage vendor deb822 repositories
+  ansible.builtin.deb822_repository:
+    name: "{{ item.name }}"
+    types: deb
+    uris: "{{ item.uris }}"
+    suites: "{{ item.suites }}"
+    components: "{{ item.components | default(omit) }}"
+    architectures: "{{ dpkg_arch.stdout }}"
+    signed_by: "{{ item.signed_by }}"
+    state: present
   become: true
-  loop: "{{ apt_repos | selectattr('key_url', 'defined') | list }}"
-  loop_control:
-    label: "{{ item.name }}"
-  notify: update apt cache
-
-- name: install repo signing keys (Launchpad PPA)
-  ansible.builtin.get_url:
-    url: "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x{{ ppa_fpr[item.name] }}"
-    dest: "/etc/apt/keyrings/{{ item.name }}.gpg"
-    mode: "0644"
-    force: true
-  become: true
-  loop: "{{ apt_repos | selectattr('ppa', 'defined') | list }}"
-  loop_control:
-    label: "{{ item.name }}"
-  notify: update apt cache
-
-# A managed deb822 source and a leftover keyless/trusted.gpg .list for the same
-# URI make apt bail with "Conflicting values set for option Signed-By". Scan only
-# sources.list.d/*.list (never the main sources.list) and drop the conflicts.
-- name: find legacy .list files for managed repos
-  ansible.builtin.shell:
-    cmd: "grep -rlF '{{ item.uri }}' /etc/apt/sources.list.d/ --include='*.list' 2>/dev/null || true"
-  register: legacy_find
-  changed_when: false
   loop: "{{ apt_repos }}"
   loop_control:
     label: "{{ item.name }}"
 
-- name: remove legacy .list files (avoid Signed-By conflict)
-  ansible.builtin.file:
-    path: "{{ item }}"
+# Remove deb822 .sources no longer managed here: chromium-beta has no noble build,
+# and graphics-drivers is now a PPA (next task), which writes its own list + key.
+- name: remove superseded deb822 sources
+  ansible.builtin.deb822_repository:
+    name: "{{ item }}"
     state: absent
   become: true
-  loop: "{{ legacy_find.results | map(attribute='stdout_lines') | flatten | unique }}"
-  notify: update apt cache
+  loop:
+    - chromium-beta
+    - graphics-drivers
 
-- name: write managed deb822 sources
-  ansible.builtin.template:
-    src: repo.sources.j2
-    dest: "/etc/apt/sources.list.d/{{ item.name }}.sources"
-    mode: "0644"
+- name: manage Launchpad PPAs (signing key installed automatically)
+  ansible.builtin.apt_repository:
+    repo: "ppa:{{ item }}"
+    state: present
   become: true
-  loop: "{{ apt_repos }}"
-  loop_control:
-    label: "{{ item.name }}"
-  notify: update apt cache
+  loop: "{{ apt_ppas }}"
 
-# Update the cache now (if keys/sources changed) so the package install below
-# verifies against the freshly-installed keys instead of failing on stale ones.
-- name: refresh apt cache before installing packages
-  ansible.builtin.meta: flush_handlers
-
-# --- packages ---------------------------------------------------------------
 - name: install apt packages
   ansible.builtin.apt:
     name: "{{ packages }}"
