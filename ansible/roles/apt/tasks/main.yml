@@ -1,4 +1,94 @@
 ---
+# --- self-healing third-party signing keys + deb822 sources -----------------
+# Re-fetch each repo's signing key and (re)write a deb822 source pinned to it, so
+# missing / expired / rotated keys and the legacy apt-key deprecation all heal on
+# a normal run. See vars/main.yml for the apt_repos schema.
+
+- name: ensure apt keyrings dir exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: resolve PPA signing-key fingerprints from Launchpad
+  ansible.builtin.uri:
+    url: "https://api.launchpad.net/devel/~{{ item.ppa.split('/')[0] }}/+archive/ubuntu/{{ item.ppa.split('/')[1] }}"
+    return_content: true
+  register: ppa_meta
+  changed_when: false
+  loop: "{{ apt_repos | selectattr('ppa', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.ppa }}"
+
+- name: map PPA name -> fingerprint
+  ansible.builtin.set_fact:
+    ppa_fpr: "{{ ppa_fpr | default({}) | combine({ item.item.name: item.json.signing_key_fingerprint }) }}"
+  loop: "{{ ppa_meta.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: install repo signing keys (direct URL)
+  ansible.builtin.get_url:
+    url: "{{ item.key_url }}"
+    dest: "/etc/apt/keyrings/{{ item.name }}.gpg"
+    mode: "0644"
+    force: true
+  become: true
+  loop: "{{ apt_repos | selectattr('key_url', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: update apt cache
+
+- name: install repo signing keys (Launchpad PPA)
+  ansible.builtin.get_url:
+    url: "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x{{ ppa_fpr[item.name] }}"
+    dest: "/etc/apt/keyrings/{{ item.name }}.gpg"
+    mode: "0644"
+    force: true
+  become: true
+  loop: "{{ apt_repos | selectattr('ppa', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: update apt cache
+
+# A managed deb822 source and a leftover keyless/trusted.gpg .list for the same
+# URI make apt bail with "Conflicting values set for option Signed-By". Scan only
+# sources.list.d/*.list (never the main sources.list) and drop the conflicts.
+- name: find legacy .list files for managed repos
+  ansible.builtin.shell:
+    cmd: "grep -rlF '{{ item.uri }}' /etc/apt/sources.list.d/ --include='*.list' 2>/dev/null || true"
+  register: legacy_find
+  changed_when: false
+  loop: "{{ apt_repos }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: remove legacy .list files (avoid Signed-By conflict)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  become: true
+  loop: "{{ legacy_find.results | map(attribute='stdout_lines') | flatten | unique }}"
+  notify: update apt cache
+
+- name: write managed deb822 sources
+  ansible.builtin.template:
+    src: repo.sources.j2
+    dest: "/etc/apt/sources.list.d/{{ item.name }}.sources"
+    mode: "0644"
+  become: true
+  loop: "{{ apt_repos }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: update apt cache
+
+# Update the cache now (if keys/sources changed) so the package install below
+# verifies against the freshly-installed keys instead of failing on stale ones.
+- name: refresh apt cache before installing packages
+  ansible.builtin.meta: flush_handlers
+
+# --- packages ---------------------------------------------------------------
 - name: install apt packages
   ansible.builtin.apt:
     name: "{{ packages }}"

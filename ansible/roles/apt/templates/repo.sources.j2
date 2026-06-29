@@ -1,0 +1,9 @@
+#jinja2: trim_blocks:True, lstrip_blocks:True
+# Managed by ansible (roles/apt). Do not edit; change apt_repos in vars/main.yml.
+Types: deb
+URIs: {{ item.uri }}
+Suites: {{ item.suites }}
+{% if item.components is defined and item.components %}
+Components: {{ item.components }}
+{% endif %}
+Signed-By: /etc/apt/keyrings/{{ item.name }}.gpg
