@@ -46,7 +46,7 @@
 
 - name: pinned version
   debug:
-    var: pinned_version
+    msg: "pinned_version: {{ pinned_version | default('(none)') }}"
 
 - name: set version to install
   set_fact:
