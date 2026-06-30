@@ -45,6 +45,17 @@ vim.diagnostic.config({
 	severity_sort = true,
 })
 vim.opt.clipboard = "unnamedplus" -- use system clipboard (Ctrl-C/V interop on Linux)
+
+-- Briefly highlight yanked text (vim.hl.on_yank; vim.highlight was renamed to
+-- vim.hl in 0.11). Visual confirmation of what the yank grabbed.
+vim.api.nvim_create_autocmd("TextYankPost", {
+	group = vim.api.nvim_create_augroup("highlight_yank", { clear = true }),
+	desc = "Highlight yanked text",
+	callback = function()
+		vim.hl.on_yank()
+	end,
+})
+
 require("config.lazy")
 require("config.telescope")  -- require telescope
 require("mason").setup()     -- require mason
