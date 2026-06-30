@@ -1,10 +1,12 @@
 ---
-# starship-claude renders the Claude Code statusline through starship. Three parts:
+# starship-claude renders the Claude Code statusline through starship. Parts:
 # the statusline script (~/.local/bin/starship-claude), the starship config it reads
-# (~/.claude/starship.toml), and the statusLine key in Claude's settings.json that
-# points at the script. The script and toml are vendored in files/ because they carry
-# a local customisation (the context segment shows exact context tokens, not a percent)
-# that upstream does not have — re-fetching from upstream would drop it.
+# (~/.claude/starship.toml), the statusLine key in Claude's settings.json that points
+# at the script, and a vendored copy of the plugin's toolkit (configure.sh + templates)
+# at ~/.claude/starship-claude/ so the statusline can be reconfigured without plugin
+# access. The script and toml are vendored in files/ because they carry a local
+# customisation (the context segment shows exact context tokens, not a percent) that
+# upstream does not have — re-fetching from upstream would drop it.
 
 - name: ensure ~/.local/bin exists
   ansible.builtin.file:
@@ -29,6 +31,27 @@
     src: starship.toml
     dest: "{{ ansible_env.HOME }}/.claude/starship.toml"
     mode: "0644"
+
+# Vendored plugin toolkit (configure.sh + templates) so /starship's reconfigure flow
+# works even on a machine with no plugin access. configure.sh derives its PLUGIN_ROOT
+# as the parent of its own bin/ dir, so this lays out as a self-contained tree:
+#   ~/.claude/starship-claude/{bin/configure.sh, templates/...}
+# Run it standalone, e.g.:
+#   ~/.claude/starship-claude/bin/configure.sh --nerdfont --style powerline \
+#     --palette catppuccin_mocha --write
+- name: install the starship-claude reconfigure toolkit (configure.sh + templates)
+  ansible.builtin.copy:
+    src: toolkit/
+    dest: "{{ ansible_env.HOME }}/.claude/starship-claude/"
+    mode: "0755"
+
+# configure.sh expects PLUGIN_ROOT/bin/starship-claude to exist (preview/compare
+# rendering). Use the customised script so previews match what actually renders.
+- name: place the statusline script inside the toolkit bin
+  ansible.builtin.copy:
+    src: starship-claude
+    dest: "{{ ansible_env.HOME }}/.claude/starship-claude/bin/starship-claude"
+    mode: "0755"
 
 # Merge our keys into settings.json, preserving every other key. Read the live file
 # at run time (slurp), merge, write back — so a re-provision never clobbers whatever
