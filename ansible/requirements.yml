@@ -1,0 +1,13 @@
+---
+# Galaxy dependencies. Install both with:
+#   ansible-galaxy install -r requirements.yml
+#
+# collections: community.general supplies community.general.github_release, used
+# by the mise, nvim, llama-cpp, opencode, tree-sitter and uv roles. It ships with
+# the full `ansible` package but NOT with bare `ansible-core`, so declare it here.
+# roles: geerlingguy.docker is required by ai-inference.yml.
+collections:
+  - name: community.general
+
+roles:
+  - name: geerlingguy.docker

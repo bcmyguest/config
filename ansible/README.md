@@ -47,15 +47,17 @@ ansible --version
 
 This should outut something like below. Pay attention to `core 2.x.x`, which is the version and `executable location`, which should be `$HOME/.local/bin` as we just setup above.
 
+Require **ansible-core 2.16 or newer**: the roles use `ansible.builtin.deb822_repository` (added in 2.15) and `ansible.builtin.systemd_service` (added in 2.16). Older cores will fail with "no module named ...".
+
 ```
-ansible [core 2.13.9]
+ansible [core 2.18.6]
   config file = /etc/ansible/ansible.cfg
   configured module search path = ['/home/gabitbol/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
-  ansible python module location = /home/gabitbol/.local/pipx/venvs/ansible/lib/python3.8/site-packages/ansible
+  ansible python module location = /home/gabitbol/.local/pipx/venvs/ansible/lib/python3.12/site-packages/ansible
   ansible collection location = /home/gabitbol/.ansible/collections:/usr/share/ansible/collections
   executable location = /home/gabitbol/.local/bin/ansible
-  python version = 3.8.10 (default, May 26 2023, 14:05:08) [GCC 9.4.0]
-  jinja version = 3.1.1
+  python version = 3.12.3 (main, ...) [GCC ...]
+  jinja version = 3.1.4
   libyaml = True
 ```
 
@@ -72,7 +74,7 @@ First we ensure that apt repositories don't produce errors and that all packages
 ```
 sudo apt-get update  # notice for failing repositories and clean them up
 sudo apt-get upgrade
-ansible-galaxy role install geerlingguy.docker
+ansible-galaxy install -r requirements.yml  # installs community.general + geerlingguy.docker
 ```
 
 No errors should occur on the last `apt-get update` command.
