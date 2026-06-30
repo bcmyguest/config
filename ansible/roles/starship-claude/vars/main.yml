@@ -1,5 +1,21 @@
 ---
-starship_claude_statusline:
-  type: command
-  padding: 0
-  command: ~/.local/bin/starship-claude
+# Patch merged (recursively) into ~/.claude/settings.json. Two concerns:
+#   * statusLine            — points Claude's statusline at the installed script.
+#   * extraKnownMarketplaces / enabledPlugins — register the upstream plugin so
+#     Claude Code itself clones it (that is what provides the /starship command,
+#     bin/configure.sh, and the toml templates on a fresh machine).
+# The runtime artifacts the wizard produces (~/.local/bin/starship-claude and
+# ~/.claude/starship.toml, both carrying the local exact-token customisation) are
+# laid down separately by the copy tasks — the plugin clone alone does not place them.
+starship_claude_settings_patch:
+  statusLine:
+    type: command
+    padding: 0
+    command: ~/.local/bin/starship-claude
+  extraKnownMarketplaces:
+    starship-claude:
+      source:
+        source: github
+        repo: martinemde/starship-claude
+  enabledPlugins:
+    starship-claude@starship-claude: true

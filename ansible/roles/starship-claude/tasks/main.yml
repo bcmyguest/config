@@ -30,17 +30,18 @@
     dest: "{{ ansible_env.HOME }}/.claude/starship.toml"
     mode: "0644"
 
-# Set only the statusLine key in settings.json, preserving every other key. Read the
-# live file at run time (slurp), merge, write back — so a re-provision never clobbers
-# whatever Claude Code has written there (model, plugins, hooks, ...). `combine` is a
-# shallow merge of the top-level statusLine key, which is exactly the scope we own.
+# Merge our keys into settings.json, preserving every other key. Read the live file
+# at run time (slurp), merge, write back — so a re-provision never clobbers whatever
+# Claude Code has written there (model, hooks, other plugins, ...). The merge is
+# `recursive=True` so registering our marketplace/plugin adds to the existing
+# extraKnownMarketplaces and enabledPlugins maps rather than replacing them.
 - name: read existing Claude settings.json
   ansible.builtin.slurp:
     src: "{{ ansible_env.HOME }}/.claude/settings.json"
   register: claude_settings_raw
   failed_when: false
 
-- name: point Claude's statusLine at starship-claude
+- name: register the plugin and point the statusLine at starship-claude
   ansible.builtin.copy:
     content: >-
       {{
@@ -48,7 +49,7 @@
           (claude_settings_raw.content | b64decode | from_json)
           if claude_settings_raw.content is defined else {}
         )
-        | combine({'statusLine': starship_claude_statusline})
+        | combine(starship_claude_settings_patch, recursive=True)
         | to_nice_json(indent=2)
       }}
     dest: "{{ ansible_env.HOME }}/.claude/settings.json"
