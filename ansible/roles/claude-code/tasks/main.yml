@@ -1,0 +1,36 @@
+---
+# Install Claude Code globally through mise so the `claude` CLI is always present — the
+# starship-claude statusline (and its configure flow) only matter on a machine running
+# Claude Code. Add it with `mise use --global`, which creates ~/.config/mise/config.toml
+# if absent and edits it in place otherwise, never clobbering tools pinned elsewhere
+# (e.g. node/bun/pnpm/yarn from the mise role). The [npm_args=...] tool-option keeps the
+# package's install scripts enabled, which mise's npm backend disables by default.
+# Depends on the mise role (mise binary on PATH + a global node).
+
+- name: read global mise config
+  ansible.builtin.slurp:
+    src: "{{ ansible_env.HOME }}/.config/mise/config.toml"
+  register: mise_config
+  failed_when: false
+
+- name: install Claude Code globally via mise (npm backend, install scripts enabled)
+  ansible.builtin.command:
+    argv:
+      - mise
+      - use
+      - --global
+      - "npm:@anthropic-ai/claude-code@latest[npm_args=--ignore-scripts=false]"
+  when: >
+    mise_config.content is not defined or
+    '@anthropic-ai/claude-code' not in (mise_config.content | b64decode)
+  changed_when: true
+
+- name: report the installed Claude Code version
+  ansible.builtin.command: mise exec -- claude --version
+  register: claude_code_version
+  changed_when: false
+  failed_when: false
+
+- name: Claude Code version
+  ansible.builtin.debug:
+    var: claude_code_version.stdout

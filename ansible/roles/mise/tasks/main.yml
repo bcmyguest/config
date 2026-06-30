@@ -94,3 +94,64 @@
     path: "{{ ansible_env.HOME }}/.bashrc"
     line: 'eval "$(mise activate bash)"'
     create: true
+
+# Global tool pins. `mise use --global` adds each tool to ~/.config/mise/config.toml
+# and installs it — creating the config if absent and editing it in place otherwise, so
+# it never clobbers tools pinned elsewhere (e.g. claude-code from its own role). These
+# are the JS toolchain that used to come from volta (node, bun, pnpm, yarn). Gated on
+# the existing config text so re-provisioning is a no-op once a tool is pinned.
+- name: read global mise config
+  ansible.builtin.slurp:
+    src: "{{ ansible_env.HOME }}/.config/mise/config.toml"
+  register: mise_global_config
+  failed_when: false
+
+- name: capture the global mise config as text
+  ansible.builtin.set_fact:
+    mise_global_config_text: "{{ (mise_global_config.content | b64decode) if mise_global_config.content is defined else '' }}"
+
+- name: pin global tools via mise
+  ansible.builtin.command:
+    argv: [mise, use, --global, "{{ item.spec }}"]
+  loop:
+    - { name: node, spec: "node@24" }
+    - { name: bun, spec: "bun@latest" }
+    - { name: pnpm, spec: "pnpm@latest" }
+    - { name: yarn, spec: "yarn@latest" }
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.name not in mise_global_config_text
+  changed_when: true
+
+- name: hold back tool releases younger than 7 days
+  ansible.builtin.command:
+    argv: [mise, settings, set, minimum_release_age, "7d"]
+  when: "'minimum_release_age' not in mise_global_config_text"
+  changed_when: true
+
+# Remove volta now that mise owns node + the JS tooling. Drops its install dir, the
+# binaries it left in ~/.local/bin, and the PATH block from the shell rc files. All
+# idempotent — re-running with volta already gone is a no-op. Ordered after the tool
+# pins above so the mise replacements exist before volta's are taken away.
+- name: remove the volta install directory
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.volta"
+    state: absent
+
+- name: remove volta binaries from ~/.local/bin
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/bin/{{ item }}"
+    state: absent
+  loop:
+    - volta
+    - volta-shim
+    - volta-migrate
+
+- name: strip the volta PATH block from shell rc files
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: '^if \[ -d "\$HOME/\.volta/bin" \] ; then\n[ \t]*PATH="\$HOME/\.volta/bin:\$PATH"\nfi\n'
+    replace: ''
+  loop:
+    - "{{ ansible_env.HOME }}/.bashrc"
+    - "{{ ansible_env.HOME }}/.profile"

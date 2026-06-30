@@ -11,6 +11,8 @@
       tags: [uv]
     - role: mise
       tags: [mise]
+    - role: claude-code
+      tags: [claude-code]
     - role: cargo
       tags: [cargo]
     - role: nerdfonts
