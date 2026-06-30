@@ -1,0 +1,5 @@
+---
+starship_claude_statusline:
+  type: command
+  padding: 0
+  command: ~/.local/bin/starship-claude

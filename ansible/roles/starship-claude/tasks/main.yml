@@ -1,0 +1,55 @@
+---
+# starship-claude renders the Claude Code statusline through starship. Three parts:
+# the statusline script (~/.local/bin/starship-claude), the starship config it reads
+# (~/.claude/starship.toml), and the statusLine key in Claude's settings.json that
+# points at the script. The script and toml are vendored in files/ because they carry
+# a local customisation (the context segment shows exact context tokens, not a percent)
+# that upstream does not have — re-fetching from upstream would drop it.
+
+- name: ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+- name: install the starship-claude statusline script
+  ansible.builtin.copy:
+    src: starship-claude
+    dest: "{{ ansible_env.HOME }}/.local/bin/starship-claude"
+    mode: "0755"
+
+- name: ensure ~/.claude exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.claude"
+    state: directory
+    mode: "0755"
+
+- name: install the starship-claude config (powerline / catppuccin_mocha, exact tokens)
+  ansible.builtin.copy:
+    src: starship.toml
+    dest: "{{ ansible_env.HOME }}/.claude/starship.toml"
+    mode: "0644"
+
+# Set only the statusLine key in settings.json, preserving every other key. Read the
+# live file at run time (slurp), merge, write back — so a re-provision never clobbers
+# whatever Claude Code has written there (model, plugins, hooks, ...). `combine` is a
+# shallow merge of the top-level statusLine key, which is exactly the scope we own.
+- name: read existing Claude settings.json
+  ansible.builtin.slurp:
+    src: "{{ ansible_env.HOME }}/.claude/settings.json"
+  register: claude_settings_raw
+  failed_when: false
+
+- name: point Claude's statusLine at starship-claude
+  ansible.builtin.copy:
+    content: >-
+      {{
+        (
+          (claude_settings_raw.content | b64decode | from_json)
+          if claude_settings_raw.content is defined else {}
+        )
+        | combine({'statusLine': starship_claude_statusline})
+        | to_nice_json(indent=2)
+      }}
+    dest: "{{ ansible_env.HOME }}/.claude/settings.json"
+    mode: "0644"

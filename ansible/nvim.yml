@@ -21,5 +21,7 @@
       tags: [tree-sitter]
     - role: starship
       tags: [starship]
+    - role: starship-claude
+      tags: [starship-claude]
 # AI inference (docker, llama-cpp, lemond, openwebui) is opt-in and lives in
 # ai-inference.yml, off the default provisioning path.
