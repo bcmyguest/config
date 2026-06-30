@@ -9,7 +9,7 @@ format = """
 $directory \
 $git_branch$git_status \
 ${env_var.CLAUDE_MODEL_NERD} \
-${env_var.CLAUDE_CONTEXT} \
+${env_var.CLAUDE_CONTEXT_TOKENS} \
 ${env_var.CLAUDE_COST}\
 """
 
@@ -33,9 +33,9 @@ variable = "CLAUDE_MODEL_NERD"
 format = "[$env_value]($style)"
 style = "fg:model"
 
-[env_var.CLAUDE_CONTEXT]
-variable = "CLAUDE_CONTEXT"
-format = "[$env_value]($style)"
+[env_var.CLAUDE_CONTEXT_TOKENS]
+variable = "CLAUDE_CONTEXT_TOKENS"
+format = "[$env_value tok]($style)"
 style = "fg:context"
 
 [env_var.CLAUDE_COST]

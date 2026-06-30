@@ -26,12 +26,6 @@
     state: directory
     mode: "0755"
 
-- name: install the starship-claude config (powerline / catppuccin_mocha, exact tokens)
-  ansible.builtin.copy:
-    src: starship.toml
-    dest: "{{ ansible_env.HOME }}/.claude/starship.toml"
-    mode: "0644"
-
 # Vendored plugin toolkit (configure.sh + templates) so /starship's reconfigure flow
 # works even on a machine with no plugin access. configure.sh derives its PLUGIN_ROOT
 # as the parent of its own bin/ dir, so this lays out as a self-contained tree:
@@ -52,6 +46,52 @@
     src: starship-claude
     dest: "{{ ansible_env.HOME }}/.claude/starship-claude/bin/starship-claude"
     mode: "0755"
+
+# The starship.toml itself: when Claude Code is installed, (re)generate it through the
+# vendored toolkit so it always tracks the current templates (which now render exact
+# context tokens). Render to a temp file then copy, so the step stays idempotent — no
+# churn when the output is unchanged. With no Claude CLI present, fall back to the
+# vendored config so the file still exists.
+- name: detect the Claude Code CLI
+  ansible.builtin.shell: command -v claude
+  register: starship_claude_cli
+  changed_when: false
+  failed_when: false
+
+- name: generate starship.toml via the toolkit (Claude installed)
+  when: starship_claude_cli.rc == 0
+  block:
+    - name: render starship.toml to a temp file
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_env.HOME }}/.claude/starship-claude/bin/configure.sh"
+          - --nerdfont
+          - --style
+          - "{{ starship_claude_style }}"
+          - --palette
+          - "{{ starship_claude_palette }}"
+          - --write
+          - "{{ starship_claude_render_tmp }}"
+      changed_when: false
+
+    - name: install the generated starship.toml
+      ansible.builtin.copy:
+        src: "{{ starship_claude_render_tmp }}"
+        dest: "{{ ansible_env.HOME }}/.claude/starship.toml"
+        remote_src: true
+        mode: "0644"
+
+    - name: remove the temp render
+      ansible.builtin.file:
+        path: "{{ starship_claude_render_tmp }}"
+        state: absent
+
+- name: install the vendored starship.toml (Claude not installed)
+  ansible.builtin.copy:
+    src: starship.toml
+    dest: "{{ ansible_env.HOME }}/.claude/starship.toml"
+    mode: "0644"
+  when: starship_claude_cli.rc != 0
 
 # Merge our keys into settings.json, preserving every other key. Read the live file
 # at run time (slurp), merge, write back — so a re-provision never clobbers whatever
