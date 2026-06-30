@@ -14,7 +14,7 @@ packages:
   - mesa-utils
   - nvtop
   # - grub-customizer # For managing GRUB bootloader
-  - libfuse2t64 # requires universe apt-repo `sudo add-apt-repository universe`
+  - libfuse2t64 # in universe; the apt role enables that component automatically
   - keychain
   - tree
   - git

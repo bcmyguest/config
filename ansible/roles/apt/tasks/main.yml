@@ -93,6 +93,33 @@
   become: true
   loop: "{{ apt_ppas }}"
 
+# libfuse2t64 (and other deps) live in the universe component, which is disabled on
+# minimal / curtin-provisioned installs. Enable it in-run instead of requiring a
+# manual `add-apt-repository universe`. add-apt-repository edits the deb822 Components
+# in place, so this does not create a duplicate Signed-By source.
+- name: ensure software-properties-common (provides add-apt-repository)
+  ansible.builtin.apt:
+    name: software-properties-common
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: check whether the universe component is already enabled
+  ansible.builtin.shell:
+    cmd: >-
+      grep -rqsE '^Components:.*\buniverse\b' /etc/apt/sources.list.d/*.sources
+      || grep -rqsE '^deb .*\buniverse\b' /etc/apt/sources.list /etc/apt/sources.list.d/*.list
+  register: universe_enabled
+  changed_when: false
+  failed_when: false
+
+- name: enable the universe component
+  ansible.builtin.command:
+    cmd: add-apt-repository -y universe
+  become: true
+  when: universe_enabled.rc != 0
+
 - name: install apt packages
   ansible.builtin.apt:
     name: "{{ packages }}"
