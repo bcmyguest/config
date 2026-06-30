@@ -39,7 +39,7 @@ require("catppuccin").setup({
 	integrations = {
 		blink_cmp = true,
 		gitsigns = true,
-		nvimtree = true,
+		snacks = true,
 		treesitter = true,
 		notify = false,
 		mini = {

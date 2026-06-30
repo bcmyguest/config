@@ -14,8 +14,15 @@ Map("i", "<M-BS>", "<C-o>diw", { desc = "delete current word" })
 -- <Cmd> keeps insert mode intact. Replaces the removed Comment.nvim.
 Map({ "i", "n" }, "<C-_>", "<Cmd>normal gcc<CR>", { desc = "Toggle comment" })
 
--- nvim-tree
-Map('n', '<Leader>t', '<Cmd>NvimTreeToggle<CR>', { desc = "Toggle tree view" })
+-- snacks explorer
+Map('n', '<Leader>t', function()
+	local picker = require("snacks").picker.get({ source = "explorer" })[1]
+	if picker and not picker.closed then
+		picker:close()
+	else
+		require("snacks").explorer()
+	end
+end, { desc = "Toggle tree view" })
 -- buffers
 Map('n', '<A-h>', '<Cmd>bprev<CR>', { desc = "Previous buffer" })
 Map('n', '<A-l>', '<Cmd>bnext<CR>', { desc = "Next buffer" })
