@@ -114,19 +114,16 @@ return {
 		ins_left({ function() return "%=" end })
 
 		ins_left({
-			-- LSP server name
+			-- Every LSP client attached to the buffer (e.g. python shows
+			-- "ruff,pyrefly"). The old filetype-match version returned only the
+			-- first hit, which hid ruff behind the type checker.
 			function()
-				local msg = "No Active Lsp"
-				local buf_ft = vim.api.nvim_get_option_value("filetype", { buf = 0 })
-				local clients = vim.lsp.get_clients({ bufnr = 0 })
-				if next(clients) == nil then return msg end
-				for _, client in ipairs(clients) do
-					local filetypes = client.config.filetypes
-					if filetypes and vim.fn.index(filetypes, buf_ft) ~= -1 then
-						return client.name
-					end
+				local names = {}
+				for _, client in ipairs(vim.lsp.get_clients({ bufnr = 0 })) do
+					names[#names + 1] = client.name
 				end
-				return msg
+				if #names == 0 then return "No Active Lsp" end
+				return table.concat(names, ",")
 			end,
 			icon = " LSP:",
 			color = { fg = "#ffffff", gui = "bold" },

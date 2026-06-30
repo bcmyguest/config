@@ -29,10 +29,25 @@ local nvim_lsp = require("lspconfig")
 local util = nvim_lsp.util
 local path = util.path
 
+-- Locate a Python virtualenv even when it isn't activated: prefer an explicit
+-- $VIRTUAL_ENV, otherwise walk up from the current file (or cwd) for a `.venv`
+-- directory (the uv / common layout). This is why pyrefly used to stay off —
+-- launching nvim without activating the venv hid the project-local pyrefly.
+local function find_venv()
+	if vim.env.VIRTUAL_ENV and vim.env.VIRTUAL_ENV ~= "" then
+		return vim.env.VIRTUAL_ENV
+	end
+	local from = vim.fn.expand("%:p:h")
+	if from == "" then
+		from = vim.fn.getcwd()
+	end
+	return vim.fs.find(".venv", { path = from, upward = true, type = "directory" })[1]
+end
+
 local function get_python_path()
-	-- Use activated virtualenv.
-	if vim.env.VIRTUAL_ENV then
-		return path.join(vim.env.VIRTUAL_ENV, "bin", "python")
+	local venv = find_venv()
+	if venv then
+		return path.join(venv, "bin", "python")
 	end
 
 	-- Fallback to system Python.
@@ -238,15 +253,23 @@ vim.lsp.config["basedpyright"] = {
 	},
 }
 
--- Resolve a binary from the active virtualenv when one is set, else fall back
--- to PATH. Mirrors get_python_path()'s venv-first assumption.
+-- Resolve a binary from the project virtualenv when it actually provides it,
+-- else fall back to PATH. Mirrors get_python_path()'s venv-first assumption.
 local function get_venv_bin(name)
-	if vim.env.VIRTUAL_ENV then
-		return path.join(vim.env.VIRTUAL_ENV, "bin", name)
+	local venv = find_venv()
+	if venv then
+		local candidate = path.join(venv, "bin", name)
+		if vim.fn.executable(candidate) == 1 then
+			return candidate
+		end
 	end
 	local found = vim.fn.exepath(name)
 	return found ~= "" and found or name
 end
+
+-- Resolved once at startup (from the launch-time venv/cwd), reused for both the
+-- pyrefly cmd and the enable-gate below.
+local pyrefly_bin = get_venv_bin("pyrefly")
 
 -- pyrefly — fast Rust-based Python type checker. filetypes/root_markers come
 -- from nvim-lspconfig's bundled config; we point cmd at the project venv's
@@ -255,7 +278,7 @@ end
 -- NOTE: overlaps with basedpyright (both type-check Python) — expect duplicate
 -- diagnostics until one is disabled.
 vim.lsp.config["pyrefly"] = {
-	cmd = { get_venv_bin("pyrefly"), "lsp" },
+	cmd = { pyrefly_bin, "lsp" },
 	capabilities = lsp_capabilities,
 	-- pyrefly reads inlay-hint config from workspace/configuration (i.e. nvim's
 	-- `settings`), under a top-level `analysis.inlayHints`. variableTypes /
@@ -272,12 +295,47 @@ vim.lsp.config["pyrefly"] = {
 	},
 }
 
--- Python type checker: prefer pyrefly when the active venv provides it, else
--- fall back to basedpyright. Never both (avoids duplicate diagnostics/hover).
--- Decided at startup from the launch-time venv, like get_python_path().
-local python_lsp = (vim.fn.executable(get_venv_bin("pyrefly")) == 1) and "pyrefly" or "basedpyright"
+-- Python type checker: pyrefly is the default and is always enabled.
+-- basedpyright runs ADDITIONALLY only when a project explicitly configures it
+-- (a pyrightconfig.json, or a [tool.basedpyright]/[tool.pyright] table in
+-- pyproject.toml). When both run, expect overlapping diagnostics/hover.
+local function basedpyright_configured()
+	local root = vim.fn.getcwd()
+	if vim.fn.filereadable(root .. "/pyrightconfig.json") == 1 then
+		return true
+	end
+	local pyproject = root .. "/pyproject.toml"
+	if vim.fn.filereadable(pyproject) == 1 then
+		local content = table.concat(vim.fn.readfile(pyproject), "\n")
+		if content:match("%[tool%.basedpyright%]") or content:match("%[tool%.pyright%]") then
+			return true
+		end
+	end
+	return false
+end
 
-vim.lsp.enable({ "lua_ls", python_lsp, "ruff", "ts_ls", "jsonls", "yamlls", "eslint", "clangd" })
+local servers = { "lua_ls", "ruff", "ts_ls", "jsonls", "yamlls", "eslint", "clangd" }
+
+-- pyrefly is the default Python type checker — enable it whenever its binary is
+-- resolvable. If it isn't, warn once instead of failing silently per-buffer
+-- (lspconfig's pyrefly config notifies on every failed spawn otherwise).
+if vim.fn.executable(pyrefly_bin) == 1 then
+	table.insert(servers, "pyrefly")
+else
+	vim.schedule(function()
+		vim.notify(
+			("pyrefly not found (%s) — Python type-checking via pyrefly is off. Install it, e.g. `uv add --dev pyrefly`.")
+			:format(pyrefly_bin),
+			vim.log.levels.WARN
+		)
+	end)
+end
+
+if basedpyright_configured() then
+	table.insert(servers, "basedpyright")
+end
+
+vim.lsp.enable(servers)
 -- Format-on-save is owned by conform.nvim (lua/plugins/formatting/conform.lua),
 -- which runs the attached LSP formatter via lsp_format = "last". The old
 -- bespoke BufWritePre autocmd lived here.
