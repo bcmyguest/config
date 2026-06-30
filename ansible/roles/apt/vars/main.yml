@@ -14,7 +14,10 @@ packages:
   - mesa-utils
   - nvtop
   # - grub-customizer # For managing GRUB bootloader
-  - libfuse2t64 # in universe; the apt role enables that component automatically
+  # libfuse2 was renamed libfuse2t64 in the 24.04 time_t (t64) transition; jammy and
+  # earlier still ship libfuse2. Pick the name from the release so both work. Lives in
+  # universe, which the apt role ensures is enabled.
+  - "{{ 'libfuse2t64' if ansible_distribution_version is version('24.04', '>=') else 'libfuse2' }}"
   - keychain
   - tree
   - git
