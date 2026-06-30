@@ -23,6 +23,7 @@ packages:
   - git
   - xclip
   - jq # required by the starship-claude statusline script
+  - fd-find
 
 # Third-party vendor repos. ansible.builtin.deb822_repository fetches the key at
 # `signed_by`, dearmors it into /etc/apt/keyrings/<name>.gpg, and writes the
