@@ -2,7 +2,6 @@
 local mason_lspconfig = require("mason-lspconfig")
 mason_lspconfig.setup {
 	ensure_installed = { "lua_ls", "rust_analyzer", "jsonls", "ruff", "basedpyright", "eslint", "ts_ls", "yamlls", "clangd" },
-	automatic_install = true,
 	-- mason auto-enables every installed server by default. Exclude the Python
 	-- type checkers so they aren't force-enabled behind our backs — the
 	-- conditional vim.lsp.enable() below picks exactly one (pyrefly when the
@@ -25,9 +24,11 @@ mason_lspconfig.setup {
 -- (replaces cmp_nvim_lsp.default_capabilities); get_lsp_capabilities() already
 -- merges Neovim's defaults.
 local lsp_capabilities = require('blink.cmp').get_lsp_capabilities()
-local nvim_lsp = require("lspconfig")
-local util = nvim_lsp.util
-local path = util.path
+-- Load nvim-lspconfig for the side effect: its bundled lsp/<name>.lua configs
+-- (cmd, root_markers, filetypes) land on the runtimepath so vim.lsp.enable()
+-- can pick them up. Path joining now uses native vim.fs.joinpath — the old
+-- lspconfig.util.path helper is deprecated.
+require("lspconfig")
 
 -- Locate a Python virtualenv even when it isn't activated: prefer an explicit
 -- $VIRTUAL_ENV, otherwise walk up from the current file (or cwd) for a `.venv`
@@ -47,7 +48,7 @@ end
 local function get_python_path()
 	local venv = find_venv()
 	if venv then
-		return path.join(venv, "bin", "python")
+		return vim.fs.joinpath(venv, "bin", "python")
 	end
 
 	-- Fallback to system Python.
@@ -101,50 +102,56 @@ vim.lsp.config["jsonls"] = {
 	capabilities = lsp_capabilities,
 	settings = { filetypes = { "json", "jsonc" }, }
 }
+-- ts_ls: `filetypes` and `init_options` are top-level config keys (init_options
+-- is sent at `initialize` — that's where the @vue/typescript-plugin must go, or
+-- it never loads). inlayHints/format live under settings.typescript /
+-- settings.javascript, each prefixed `includeInlay*` — the old flat layout under
+-- `settings` was silently ignored by ts_ls.
+-- https://github.com/typescript-language-server/typescript-language-server/blob/master/docs/configuration.md
+local ts_inlay_hints = {
+	includeInlayParameterNameHints = "all",
+	includeInlayParameterNameHintsWhenArgumentMatchesName = true,
+	includeInlayFunctionParameterTypeHints = true,
+	includeInlayVariableTypeHints = true,
+	includeInlayPropertyDeclarationTypeHints = true,
+	includeInlayFunctionLikeReturnTypeHints = true,
+	includeInlayEnumMemberValueHints = true,
+}
+local ts_format = {
+	baseIndentSize = 2,
+	indentSize = 1,
+	indentStyle = "Smart",
+	insertSpaceAfterCommaDelimiter = true,
+	insertSpaceAfterConstructor = true,
+	insertSpaceAfterFunctionKeywordForAnonymousFunctions = true,
+	insertSpaceAfterKeywordsInControlFlowStatements = true,
+	semicolons = "Insert",
+}
 vim.lsp.config["ts_ls"] = {
 	capabilities = lsp_capabilities,
-	-- https://github.com/typescript-language-server/typescript-language-server/blob/master/docs/configuration.md
-	settings = {
-		init_options = {
-			plugins = {
-				{
-					name = "@vue/typescript-plugin",
-					location = "/usr/local/lib/node_modules/@vue/typescript-plugin",
-					languages = { "javascript", "typescript", "vue" },
-				},
+	filetypes = { "javascript", "javascriptreact", "javascript.jsx", "typescript", "typescriptreact", "typescript.tsx", "vue" },
+	init_options = {
+		plugins = {
+			{
+				name = "@vue/typescript-plugin",
+				location = "/usr/local/lib/node_modules/@vue/typescript-plugin",
+				languages = { "javascript", "typescript", "vue" },
 			},
-			hostInfo = "neovim"
 		},
-		filetypes = { "javascript", "javascriptreact", "javascript.jsx", "typescript", "typescriptreact", "typescript.tsx", "vue" },
-		includeInlayParameterNameHintsWhenArgumentMatchesName = true,
-		includeInlayFunctionParameterTypeHints = true,
-		includeInlayVariableTypeHints = true,
-		includeInlayPropertyDeclarationTypeHints = true,
-		includeInlayFunctionLikeReturnTypeHints = true,
-		includeInlayEnumMemberValueHints = true,
-		includeInlayParameterNameHints = 'all',
-		format = {
-			baseIndentSize = 2,
-			indentSize = 1,
-			indentStyle = 'Smart',
-			insertSpaceAfterCommaDelimiter = true,
-			insertSpaceAfterConstructor = true,
-			insertSpaceAfterFunctionKeywordForAnonymousFunctions = true,
-			insertSpaceAfterKeywordsInControlFlowStatements = true,
-			semicolons = 'Insert',
-
-		}
-	}
+		hostInfo = "neovim",
+	},
+	settings = {
+		typescript = { inlayHints = ts_inlay_hints, format = ts_format },
+		javascript = { inlayHints = ts_inlay_hints, format = ts_format },
+	},
 }
 vim.lsp.config["eslint"] = {
 	capabilities = lsp_capabilities,
 	settings = {
 		bin = 'eslint', -- or `eslint_d`
-		-- https://github.com/LazyVim/LazyVim/issues/3383
-		useFlatConfig = false, -- set if using flat config
-		experimental = {
-			useFlatConfig = nil, -- option not in the latest eslint-lsp
-		},
+		-- useFlatConfig is omitted: current eslint-lsp auto-detects flat config
+		-- (eslint.config.js), which is the ESLint 9 default. Force it only to
+		-- pin legacy .eslintrc behaviour.
 		code_actions = {
 			enable = true,
 			apply_on_save = {
@@ -209,9 +216,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
 vim.lsp.config["basedpyright"] = {
 	capabilities = lsp_capabilities,
 	before_init = function(_, config)
-		local python_path = get_python_path()
-		config.settings.python.pythonPath = python_path
-		vim.notify(python_path)
+		config.settings.python.pythonPath = get_python_path()
 	end,
 	settings = {
 		filetypes = { "python", "jupyter", "ipynb", "py", "pyc" },
@@ -258,7 +263,7 @@ vim.lsp.config["basedpyright"] = {
 local function get_venv_bin(name)
 	local venv = find_venv()
 	if venv then
-		local candidate = path.join(venv, "bin", name)
+		local candidate = vim.fs.joinpath(venv, "bin", name)
 		if vim.fn.executable(candidate) == 1 then
 			return candidate
 		end

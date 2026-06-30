@@ -5,7 +5,8 @@ local function on_attach()
 	Map("n", "<Leader>i", require("lspimport").import, { desc = "Import" })
 
 	-- lsp actions https://github.com/linguini1/nvim/blob/main/after/plugin/lsp.lua
-	Map("n", "K", vim.lsp.buf.hover, { buffer = 0, desc = "Show documentation in hover window." })
+	-- K (hover), grr (references), grn (rename) come from Neovim's built-in
+	-- LSP defaults (0.11+) — not remapped here.
 	Map("n", "gd", vim.lsp.buf.definition, { buffer = 0, desc = "Jump to definition." })
 	Map("n", "gD", vim.lsp.buf.declaration, { buffer = 0, desc = "Jump to declaration." })
 	Map("n", "gi", vim.lsp.buf.implementation, { buffer = 0, desc = "Jump to implementation." })
@@ -16,13 +17,6 @@ local function on_attach()
 		"gq",
 		function() vim.lsp.buf.format({ async = true }) end,
 		{ buffer = 0, desc = "Jump to signature help." }
-	)
-	Map("n", "rn", vim.lsp.buf.rename, { buffer = 0, desc = "Rename symbol under cursor." })
-	Map(
-		"n",
-		"gr",
-		require("telescope.builtin").lsp_references,
-		{ buffer = 0, desc = "Show references in a Telescope window." }
 	)
 	-- Diagnostics
 	Map("n", "<Leader>ds", function()
@@ -40,12 +34,9 @@ local function on_attach()
 		end,
 		{ desc = "Show diagnostic information in hover." })
 
-	-- Code actions
-	if vim.lsp.buf.range_code_action then
-		Map("n", "<Leader>la", vim.lsp.buf.range_code_action,
-			{ buffer = 0, desc = "Range code action." })
-	else
-		Map("n", "<Leader>la", "<cmd>lua vim.lsp.buf.code_action()<CR>")
-	end
+	-- Code actions (handles visual-mode ranges natively; the removed
+	-- range_code_action API was deleted in Neovim 0.7).
+	Map({ "n", "v" }, "<Leader>la", vim.lsp.buf.code_action,
+		{ buffer = 0, desc = "Code action." })
 end
 return { on_attach = on_attach }
