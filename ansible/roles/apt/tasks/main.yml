@@ -43,6 +43,49 @@
     - chromium-beta
     - graphics-drivers
 
+# Manual installs (or pre-deb822 runs) leave legacy entries that declare these same
+# repos with a different Signed-By key path. apt then refuses to read EVERY source:
+# "Conflicting values set for option Signed-By". The deb822 .sources written above are
+# now canonical, so strip every other reference to a managed repo URL from within the
+# run itself:
+#   * any file in sources.list.d that names a managed URL but is not that repo's
+#     canonical <name>.sources  -> deleted (it is a leftover per-repo dup file);
+#   * matching lines in the monolithic /etc/apt/sources.list -> commented out.
+# Match on the full URL path (scheme/trailing slash stripped), not just the host, so a
+# different repo on the same host (e.g. vscode on packages.microsoft.com) is untouched.
+# Keyrings are never removed: a key with no source is inert and some are shared.
+- name: find legacy source files duplicating deb822-managed repos
+  ansible.builtin.shell:
+    cmd: >-
+      grep -rIlF
+      {% for r in apt_repos %}-e '{{ r.uris | regex_replace('^https?://', '') | regex_replace('/$', '') }}' {% endfor %}
+      /etc/apt/sources.list.d/ 2>/dev/null
+      | grep -vxE '{% for r in apt_repos %}/etc/apt/sources\.list\.d/{{ r.name }}\.sources{% if not loop.last %}|{% endif %}{% endfor %}'
+      || true
+  register: legacy_apt_sources
+  changed_when: false
+
+- name: remove legacy per-repo source files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  become: true
+  loop: "{{ legacy_apt_sources.stdout_lines }}"
+
+- name: check for a monolithic /etc/apt/sources.list
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list
+  register: monolithic_sources
+
+- name: comment out legacy entries inside /etc/apt/sources.list
+  ansible.builtin.replace:
+    path: /etc/apt/sources.list
+    regexp: >-
+      ^(\s*deb(?:-src)?\s+.*(?:{{ apt_repos | map(attribute='uris') | map('regex_replace', '^https?://', '') | map('regex_replace', '/$', '') | map('regex_escape') | join('|') }}).*)$
+    replace: '# \1  # disabled by ansible: duplicates a deb822-managed repo'
+  become: true
+  when: monolithic_sources.stat.exists
+
 - name: manage Launchpad PPAs (signing key installed automatically)
   ansible.builtin.apt_repository:
     repo: "ppa:{{ item }}"
