@@ -105,20 +105,21 @@
     cache_valid_time: 3600
   become: true
 
-- name: check whether the universe component is already enabled
-  ansible.builtin.shell:
-    cmd: >-
-      grep -rqsE '^Components:.*\buniverse\b' /etc/apt/sources.list.d/*.sources
-      || grep -rqsE '^deb .*\buniverse\b' /etc/apt/sources.list /etc/apt/sources.list.d/*.list
-  register: universe_enabled
-  changed_when: false
-  failed_when: false
-
-- name: enable the universe component
+# Trust apt's own view (apt-cache policy), not a grep of the source files: the box
+# can have `universe` in a Components line that is disabled or not yet in the package
+# cache, which made a file grep report it enabled while apt still could not find the
+# package. -u makes add-apt-repository refresh the cache so the package becomes visible.
+- name: detect whether apt sees the universe component
   ansible.builtin.command:
-    cmd: add-apt-repository -y universe
+    cmd: apt-cache policy
+  register: apt_policy
+  changed_when: false
+
+- name: enable the universe component when apt does not yet see it
+  ansible.builtin.command:
+    cmd: add-apt-repository -y -u universe
   become: true
-  when: universe_enabled.rc != 0
+  when: "'c=universe' not in apt_policy.stdout"
 
 - name: install apt packages
   ansible.builtin.apt:
