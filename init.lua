@@ -10,6 +10,13 @@ vim.lsp.buf_get_clients  = function(bufnr)
 	return vim.lsp.get_clients({ bufnr = bufnr or 0 })
 end
 
+-- Shim: galaxyline.nvim also calls the deprecated vim.lsp.get_active_clients(),
+-- renamed to get_clients() in 0.10 with an identical filter argument. Alias it
+-- directly so the deprecation warning stops.
+vim.lsp.get_active_clients = function(filter)
+	return vim.lsp.get_clients(filter)
+end
+
 vim.opt.number           = true  -- absolute line number for the line you are on
 vim.opt.relativenumber   = false -- relative line numbers
 
