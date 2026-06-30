@@ -4,6 +4,13 @@ vim.g.loaded_netrwPlugin = 1
 vim.opt.number           = true  -- absolute line number for the line you are on
 vim.opt.relativenumber   = false -- relative line numbers
 
+-- Indentation fallback for buffers guess-indent.nvim can't sample (new/empty
+-- files). Keeps hard tabs (expandtab unset) but renders them 4-wide, not the
+-- native 8. guess-indent overrides expandtab/shiftwidth/tabstop per buffer.
+vim.opt.tabstop          = 4
+vim.opt.shiftwidth       = 4
+vim.opt.softtabstop      = 4
+
 -- Editing creature comforts
 vim.opt.undofile         = true     -- persistent undo across sessions
 vim.opt.ignorecase       = true     -- case-insensitive search...

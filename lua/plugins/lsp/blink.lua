@@ -31,7 +31,18 @@ return {
 		},
 		-- signature help stays off here — noice.nvim owns the signature popup.
 		signature = { enabled = false },
-		sources = { default = { "lsp", "path", "snippets", "buffer" } },
+		sources = {
+			-- lazydev feeds nvim-API completions in Lua config buffers; score_offset
+			-- ranks it above LSP so `vim.*` items surface first. No-op elsewhere.
+			default = { "lazydev", "lsp", "path", "snippets", "buffer" },
+			providers = {
+				lazydev = {
+					name = "LazyDev",
+					module = "lazydev.integrations.blink",
+					score_offset = 100,
+				},
+			},
+		},
 		-- live as-you-type cmdline menu (old cmp-cmdline / cmp-path behaviour).
 		cmdline = { completion = { menu = { auto_show = true } } },
 		fuzzy = { implementation = "prefer_rust_with_warning" },

@@ -93,6 +93,10 @@ vim.lsp.config["yamlls"] = {
 			}
 		},
 		yaml = {
+			-- Use SchemaStore.nvim's catalog instead of yamlls' built-in fetcher
+			-- (schemaStore disabled so the two don't both inject schemas).
+			schemaStore = { enable = false, url = "" },
+			schemas = require("schemastore").yaml.schemas(),
 			filetypes = { "yaml", "yaml.docker-compose", "yaml.gitlab", "yml" },
 			single_file_support = true
 		}
@@ -101,6 +105,13 @@ vim.lsp.config["yamlls"] = {
 vim.lsp.config["jsonls"] = {
 	capabilities = lsp_capabilities,
 	filetypes = { "json", "jsonc" },
+	settings = {
+		json = {
+			-- Schema catalog from SchemaStore.nvim (package.json, tsconfig, etc).
+			schemas = require("schemastore").json.schemas(),
+			validate = { enable = true },
+		},
+	},
 }
 -- ts_ls: `filetypes` and `init_options` are top-level config keys (init_options
 -- is sent at `initialize` — that's where the @vue/typescript-plugin must go, or
