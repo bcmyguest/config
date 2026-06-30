@@ -1,7 +1,5 @@
 -- https://github.com/williamboman/mason.nvim
 -- Mason is an lsp package manager for nvim
--- https://github.com/mhartington/formatter.nvim
--- Formatter automatically formats your code on save
 -- https://github.com/neovim/nvim-lspconfig
 -- collection of lsp configurations
 -- https://github.com/williamboman/mason-lspconfig.nvim
@@ -14,10 +12,6 @@ return {
 	{
 		"williamboman/mason.nvim",
 		lazy = false
-	},
-	{
-
-		"mhartington/formatter.nvim"
 	},
 	{
 		"neovim/nvim-lspconfig",

@@ -8,7 +8,7 @@ return {
 	dependencies = { "MunifTanjim/nui.nvim" },
 	opts = {
 		cmdline = { enabled = true, view = "cmdline_popup" }, -- floating cmdline, prefix always visible
-		popupmenu = { enabled = false },                      -- nvim-cmp owns the cmdline completion menu
+		popupmenu = { enabled = false },                      -- blink.cmp owns the cmdline completion menu
 		notify = { enabled = false },                         -- leave vim.notify to fidget
 		messages = { enabled = false },                       -- don't hijack :messages / search count
 		lsp = {

@@ -9,8 +9,10 @@ Map("v", "<", "<gv", { desc = "indent left" })
 Map("v", ">", ">gv", { desc = "indent right" })
 -- alt + bs to delete current word
 Map("i", "<M-BS>", "<C-o>diw", { desc = "delete current word" })
-Map({ "i", "n" }, "<C-_>", function() require('Comment.api').toggle.linewise.current() end,
-	{ desc = "Toggle comment" })
+-- Toggle comment on the current line via Neovim's built-in commenting (gcc,
+-- available since 0.10). `:normal gcc` applies the built-in <Plug> mapping and
+-- <Cmd> keeps insert mode intact. Replaces the removed Comment.nvim.
+Map({ "i", "n" }, "<C-_>", "<Cmd>normal gcc<CR>", { desc = "Toggle comment" })
 
 -- nvim-tree
 Map('n', '<Leader>t', '<Cmd>NvimTreeToggle<CR>', { desc = "Toggle tree view" })

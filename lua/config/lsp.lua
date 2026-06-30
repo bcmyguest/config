@@ -21,9 +21,10 @@ mason_lspconfig.setup {
 --
 -- }
 
--- LSP attach and capabilities
-local lsp_capabilities = vim.lsp.protocol.make_client_capabilities()
-lsp_capabilities = require('cmp_nvim_lsp').default_capabilities(lsp_capabilities)
+-- LSP attach and capabilities. blink.cmp supplies the completion capabilities
+-- (replaces cmp_nvim_lsp.default_capabilities); get_lsp_capabilities() already
+-- merges Neovim's defaults.
+local lsp_capabilities = require('blink.cmp').get_lsp_capabilities()
 local nvim_lsp = require("lspconfig")
 local util = nvim_lsp.util
 local path = util.path
@@ -277,24 +278,9 @@ vim.lsp.config["pyrefly"] = {
 local python_lsp = (vim.fn.executable(get_venv_bin("pyrefly")) == 1) and "pyrefly" or "basedpyright"
 
 vim.lsp.enable({ "lua_ls", python_lsp, "ruff", "ts_ls", "jsonls", "yamlls", "eslint", "clangd" })
--- auto-format on save, but only when an attached client can actually format
--- (the old blind `vim.lsp.buf.format()` ran on every buffer and could hang).
-vim.api.nvim_create_autocmd("BufWritePre", {
-	group = vim.api.nvim_create_augroup("lsp_format_on_save", { clear = true }),
-	callback = function(args)
-		local has_formatter = false
-		for _, client in ipairs(vim.lsp.get_clients({ bufnr = args.buf })) do
-			if client:supports_method("textDocument/formatting", args.buf) then
-				has_formatter = true
-				break
-			end
-		end
-		if has_formatter then
-			vim.lsp.buf.format({ bufnr = args.buf, timeout_ms = 2000 })
-		end
-	end,
-	desc = "LSP: format on save when supported",
-})
+-- Format-on-save is owned by conform.nvim (lua/plugins/formatting/conform.lua),
+-- which runs the attached LSP formatter via lsp_format = "last". The old
+-- bespoke BufWritePre autocmd lived here.
 
 
 vim.api.nvim_create_autocmd('LspAttach', {

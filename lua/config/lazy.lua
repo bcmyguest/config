@@ -23,10 +23,8 @@ require("lazy").setup({
 		-- import your plugins
 		{ import = "plugins" },
 		{ import = "plugins.lsp" },
-		{ import = "plugins.keymaps.refactoring" },
 		{ import = "plugins.formatting" },
 		{ import = "plugins.themes" },
-		{ import = "plugins.keymaps" },
 	},
 	checker = { enabled = true, notify = false },
 	-- Configure any other settings here. See the documentation for more details.
