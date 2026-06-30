@@ -100,7 +100,7 @@ vim.lsp.config["yamlls"] = {
 }
 vim.lsp.config["jsonls"] = {
 	capabilities = lsp_capabilities,
-	settings = { filetypes = { "json", "jsonc" }, }
+	filetypes = { "json", "jsonc" },
 }
 -- ts_ls: `filetypes` and `init_options` are top-level config keys (init_options
 -- is sent at `initialize` — that's where the @vue/typescript-plugin must go, or
@@ -177,8 +177,8 @@ vim.lsp.config["eslint"] = {
 vim.lsp.config["ruff"] = {
 	--	disabled code actions for ruff since we want to use pyright
 	capabilities = lsp_capabilities,
+	filetypes = { "python" },
 	settings = {
-		filetypes = { "python" },
 		code_actions = {
 			enable = false
 		}
@@ -215,11 +215,11 @@ vim.api.nvim_create_autocmd("LspAttach", {
 
 vim.lsp.config["basedpyright"] = {
 	capabilities = lsp_capabilities,
+	filetypes = { "python", "jupyter", "ipynb", "py", "pyc" },
 	before_init = function(_, config)
 		config.settings.python.pythonPath = get_python_path()
 	end,
 	settings = {
-		filetypes = { "python", "jupyter", "ipynb", "py", "pyc" },
 		basedpyright = {
 			-- Using Ruff's import organizer
 			disableOrganizeImports = true,
@@ -229,10 +229,6 @@ vim.lsp.config["basedpyright"] = {
 				-- Ignore all files for analysis to exclusively use Ruff for linting
 				--ignore = { '*' },
 				userFileIndexingLimit = 5000,
-				code_actions = {
-					enable = true,
-
-				},
 				autoIndent = true,
 				autoSearchPaths = true,
 				autoFormatStrings = true,
@@ -249,12 +245,8 @@ vim.lsp.config["basedpyright"] = {
 			},
 
 		},
+		-- Kept (empty): before_init writes settings.python.pythonPath into it.
 		python = {},
-		code_action = {
-			enable = true,
-
-
-		}
 	},
 }
 

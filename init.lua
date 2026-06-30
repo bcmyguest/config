@@ -13,6 +13,7 @@ vim.opt.signcolumn       = "yes"    -- always show sign column (no gutter jitter
 vim.opt.splitright       = true     -- vertical splits open to the right
 vim.opt.splitbelow       = true     -- horizontal splits open below
 vim.opt.mouse            = "a"      -- mouse in all modes
+vim.opt.cursorline       = true     -- highlight current line (native; replaced nvim-cursorline)
 vim.opt.winborder        = "rounded" -- default border for all floats (hover, signature, etc.)
 
 vim.diagnostic.config({
@@ -40,15 +41,12 @@ vim.opt.clipboard = "unnamedplus" -- use system clipboard (Ctrl-C/V interop on L
 require("config.lazy")
 require("config.telescope")  -- require telescope
 require("mason").setup()     -- require mason
-require("config.tree")       -- file tree
 require("config.treesitter") -- require syntax highlighting
 require("config.mappings")   -- require local mappings file
 require("config.lsp")        -- require local lsp file
 require("config.theme")
 require("config.inlay")
-require("config.fidget")
 require("config.git")
 require("bufferline").setup {}
 require("config.icons")
-require("plugins.opencode")
 require("config.opencode")

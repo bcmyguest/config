@@ -20,7 +20,7 @@ Map('n', '<Leader>dr', function() dap.restart() end,
 Map('n', '<Leader>lp',
 	function() dap.set_breakpoint(nil, nil, vim.fn.input('Log point message: ')) end,
 	{ desc = "Log point" })
-Map('n', '<Leader>dr', function() dap.repl.open() end,
+Map('n', '<Leader>dt', function() dap.repl.open() end,
 	{ desc = "Open dap repl" })
 Map('n', '<Leader>dl', function() dap.run_last() end,
 	{ desc = "Run last debug config" })
@@ -34,7 +34,9 @@ Map('n', '<Leader>df', function()
 	local widgets = require('dap.ui.widgets')
 	widgets.centered_float(widgets.frames)
 end, { desc = "Debug window float" })
-Map('n', '<Leader>ds', function()
+-- <Leader>dS (capital): scopes float. <Leader>ds stays the LSP diagnostic
+-- float (mappings/lsp.lua) — that mapping wins on LspAttach anyway.
+Map('n', '<Leader>dS', function()
 	local widgets = require('dap.ui.widgets')
 	widgets.centered_float(widgets.scopes)
-end, { desc = "Show debug widgets" })
+end, { desc = "Show debug scopes" })
