@@ -66,15 +66,17 @@ vim.lsp.config["yamlls"] = {
 	capabilities = lsp_capabilities,
 	filetypes = { "yaml", "yaml.docker-compose", "yaml.gitlab" },
 	settings = {
+		-- redhat.telemetry is a top-level yamlls setting, NOT under `yaml`.
+		-- It previously sat at array index [1] inside `yaml`, making that
+		-- table a mixed list+dict — which nvim_exec_autocmds can't serialize
+		-- for the LspNotify autocmd ("Cannot convert given Lua table").
+		redhat = {
+			telemetry = {
+				enabled = false
+			}
+		},
 		yaml = {
 			filetypes = { "yaml", "yaml.docker-compose", "yaml.gitlab", "yml" },
-			{
-				redhat = {
-					telemetry = {
-						enabled = false
-					}
-				}
-			},
 			single_file_support = true
 		}
 	}
