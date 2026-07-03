@@ -1,153 +1,87 @@
-## Installing nvim
+# nvim config
 
-Install nvim with [ansible](./ansible/README.md) or manually.
+Neovim 0.12 configuration. Plugins are managed by [lazy.nvim](https://github.com/folke/lazy.nvim)
+and load lazily (keys/cmd/event triggers); a bare `nvim` start loads only the
+colorscheme, treesitter, snacks, and the opencode/puppeteer integrations.
 
-Install lua with [ansible](./ansible/README.md) or [manually](https://github.com/luarocks/luarocks/blob/main/docs/installation_instructions_for_unix.md).
+## Installing
 
-## Basic structure
+Install nvim and its toolchain with [ansible](./ansible/README.md) (`nvim.yml`), or manually.
+The AI inference stack (docker, llama.cpp, lemond, Open WebUI) is separate — see
+`ai-inference.yml` in the same ansible setup. Old manual notes: [docs/machine-setup.md](./docs/machine-setup.md).
 
-This repo is structured like this
+## Structure
 
 ```
-├── init.lua
-├── lazy-lock.json
+├── init.lua              # options, diagnostics config, autocmds; requires config.*
+├── lazy-lock.json        # lazy.nvim lockfile (like package-lock.json)
 ├── lua
-│   ├── config
-│   │   ├── <plugin_config>.lua
-│   └── plugins
-│       ├── <plugin>.lua
-└── README.md
-
+│   ├── config            # cross-plugin config: lazy bootstrap, lsp, treesitter, mappings
+│   └── plugins           # one lazy.nvim spec per plugin (setup + keymaps live here)
+│       ├── lsp/          # mason, blink.cmp, lazydev, schemastore
+│       ├── formatting/   # conform, autopairs, guess-indent, indent-blankline, puppeteer
+│       └── themes/       # tokyonight (active), catppuccin
+├── .github/workflows     # CI: stylua --check + headless startup smoke test
+└── ansible               # machine provisioning (editor toolchain + AI stack)
 ```
 
-- `init.lua` is the main entry point for nvim. It loads all the plugins and configurations.
-- `lazy-lock.json` is the lock file for lazy.nvim. It is analogous to `package-lock.json` or `yarn.lock`, and is automatically updated by lazy.nvim.
-- `lua/plugins` contains the plugin files. You can add your own plugins here (try to keep this minimal).
-- `lua/config` contains the configuration files for the plugins. You can add your own configurations here.
+Conventions:
 
-Note: If you nest your plugins in a subdirectory, you need to properly import them in [lazy.nvim config](./lua/config/lazy.lua)
+- A plugin's entire setup — `opts`/`config` **and its keymaps** (`keys`) — lives in its
+  spec under `lua/plugins/`. Nothing plugin-related is required from `init.lua`.
+- `lua/config/` holds what spans plugins: `lsp.lua` (server configs + enablement),
+  `treesitter.lua`, `mappings*.lua` (plugin-free global maps), `lazy.lua` (bootstrap).
+- New spec subdirectories must be imported in [lua/config/lazy.lua](./lua/config/lazy.lua).
 
 ## Plugins
 
-Lazy.nvim is used as the plugin manager. It is installed automatically when you run `nvim` for the first time. You can run it manually with the command (from inside nvim):
+lazy.nvim installs itself and all plugins on first `nvim` run. Manage with `:Lazy`
+(install/update/restore). `lazy-lock.json` pins versions; CI restores from it.
 
-```lua
-:Lazy
-```
+nvim-treesitter is pinned to the `main` rewrite branch — it has a different API than
+`master` (no `ensure_installed`/declarative setup). Parser install + per-buffer
+highlighting live in [lua/config/treesitter.lua](./lua/config/treesitter.lua).
 
 ## LSP
 
-Language servers are also installed for you by `Mason`. You can download or update them with the command (from inside nvim):
+Language servers are installed by Mason (`:Mason`) and configured in
+[lua/config/lsp.lua](./lua/config/lsp.lua) via the native `vim.lsp.config` /
+`vim.lsp.enable` API (Neovim 0.11+). The whole stack loads on the first real buffer.
 
-```lua
-:Mason
-```
+Python has two type checkers wired up:
 
-Note: if you want them to be persistent or want to configured them, use [lsp config](./lua/config/lsp.lua) to do so.
+- **pyrefly** is the default — enabled whenever its binary resolves (project venv
+  first, then PATH). If missing you get a one-time warning.
+- **basedpyright** runs additionally only when the project opts in
+  (`pyrightconfig.json`, or `[tool.basedpyright]`/`[tool.pyright]` in `pyproject.toml`).
+
+Formatting on save is owned by conform.nvim (`lua/plugins/formatting/conform.lua`),
+running trim_whitespace then the attached LSP formatter.
 
 ## Keymaps
 
-Keymaps are defined in [mappings.lua](./lua/config/mappings.lua) and the [mappings subdirectory](./lua/config/mappings/). You can change them there. You can also search for them with `<Space>gl` (which is the same as the `Telescope keymaps` command).
+`<Space>` is the leader. Global plugin-free maps:
+[lua/config/mappings.lua](./lua/config/mappings.lua) + `lua/config/mappings/misc.lua`.
+LSP buffer-local maps (applied on attach): `lua/config/mappings/lsp.lua`.
+Plugin maps live in each plugin's spec (`keys = …`) — telescope under `<Space>f…`,
+dap under `<Space>d…`, diffview under `<Space>g…`, trouble under `<Space>x…`.
+Search all of them with `<Space>gl` (`:Telescope keymaps`).
 
 ## Colorscheme
 
-Right now the theme is set by `galaxyline` in [here](./lua/config/spec.lua). You can change this, you can also add a theme like the `catpuccin` theme in [here](./lua/config/theme.lua).
+tokyonight is the active colorscheme ([lua/plugins/themes/tokyotonight.lua](./lua/plugins/themes/tokyotonight.lua));
+catppuccin is installed and configured as an alternate
+([lua/plugins/themes/catpuccin.lua](./lua/plugins/themes/catpuccin.lua)).
 
-## open-webui
+## Development
 
-need ollama running (docker run --restart always)
+- Format: `stylua .` (config in [.stylua.toml](./.stylua.toml) — hard tabs).
+- Hooks: `pre-commit install` once; hygiene hooks + stylua run per commit.
+- CI ([.github/workflows/ci.yml](./.github/workflows/ci.yml)) checks formatting and
+  boots nvim headless (plugin restore from the lockfile, bare startup, file open) so a
+  broken config fails the build instead of the next editing session.
+- Quick local smoke test:
 
-https://docs.ollama.com/faq#how-can-i-allow-additional-web-origins-to-access-ollama
-https://github.com/open-webui/open-webui
-
-```bash
-docker run -d -p 8080:8080 -e HOST='0.0.0.0' -e OLLAMA_BASE_URL=http://0.0.0.0:11434 -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
-
-```
-this one with network mode host seems to work better.
-```
-docker run -d -p 8080:8080 --network=host -e HOST='0.0.0.0' -e OLLAMA_BASE_URL=http://0.0.0.0:11434 -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
-
-```
-
-
-if you need to update the docker image just
-
-```
-docker pull ghcr.io/open-webui/open-webui:main
-
-```
-
-## llama.cpp
-
-https://github.com/ggml-org/llama.cpp/blob/master/docs/docker.md
-https://rocm.docs.amd.com/projects/install-on-linux/en/latest/install/3rd-party/previous-versions/llama-cpp-install-v25.9.html#using-docker-with-llama-cpp-pre-installed
-```
-docker run --privileged \
-           --network=host \
-           --device=/dev/kfd \
-           --device=/dev/dri \
-           --group-add video \
-           --cap-add=SYS_PTRACE \
-           --security-opt seccomp=unconfined \
-           --ipc=host \
-           --shm-size 16G \
-           -v $MODEL_PATH:/data \
-           rocm/llama.cpp:<TAG>_server \
-             -m /data/DeepSeek-V3-Q4_K_M-00001-of-00009.gguf \
-             --port 8000 --host 0.0.0.0 -n 512 --n-gpu-layers 999
-```
-my command:
-```
-docker run -v /home/b/.cache/llama.cpp/:/models --privileged --network=host --cap-add=SYS_PTRACE --cap-add=SYS_PTRACE --group-add video --device=/dev/kfd --device=/dev/dri  -p 8000:8000 ghcr.io/ggml-org/llama.cpp:server-vulkan --port 8000 --host 0.0.0.0 -n 512 -ngl 999 -m "/models/ggml-org_Qwen2.5-Coder-7B-Q8_0-GGUF_qwen2.5-coder-7b-q8_0.gguf" -ub 1024 -b 1024 --ctx-size 0 --cache-reuse 256
-```
-from the docs:
-```
-# Use a local model file
-llama-cli -m my_model.gguf
-
-# Or download and run a model directly from Hugging Face
-llama-cli -hf ggml-org/gemma-3-1b-it-GGUF
-
-# Launch OpenAI-compatible API server
-llama-server -hf ggml-org/gemma-3-1b-it-GGUF
-```
-
-```
-llama-server -m /home/b/.cache/llama.cpp/ggml-org_Qwen3-Coder-30B-A3B-Instruct-Q8_0-GGUF_qwen3-coder-30b-a3b-instruct-q8_0.gguf -ngl 99 -ub 1024 -b 1024 --ctx-size 0 --cache-reuse 256 --port 8012 --host 127.0.0.1
-
-```
-## docker
-
-manually installed
-https://docs.docker.com/engine/install/ubuntu/
-
-## amd gpu drivers
-https://rocm.docs.amd.com/projects/install-on-linux/en/latest/install/quick-start.html
-```
-wget https://repo.radeon.com/amdgpu-install/7.1/ubuntu/noble/amdgpu-install_7.1.70100-1_all.deb
-sudo apt install ./amdgpu-install_7.1.70100-1_all.deb
-sudo apt update
-sudo apt install python3-setuptools python3-wheel
-sudo usermod -a -G render,video $LOGNAME # Add the current user to the render and video groups
-sudo apt install rocm
-
-
-wget https://repo.radeon.com/amdgpu-install/7.1/ubuntu/noble/amdgpu-install_7.1.70100-1_all.deb
-sudo apt install ./amdgpu-install_7.1.70100-1_all.deb
-sudo apt update
-sudo apt install "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)"
-sudo apt install amdgpu-dkms
-```
-
-then
-
-https://rocm.docs.amd.com/projects/amdsmi/en/latest/install/install.html
-
-
-then
-
-```
-python3 -m pip install argcomplete
-activate-global-python-argcomplete --user
-```
+  ```bash
+  nvim --headless "+lua io.write('STARTUP_OK\n')" +qa
+  ```
