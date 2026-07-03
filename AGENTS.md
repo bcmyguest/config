@@ -33,8 +33,14 @@
 
 - **Format**: `stylua .` — config in `.stylua.toml` (hard tabs, indent width 4,
   column width 120). CI runs `stylua --check .`.
-- **Hooks**: `.pre-commit-config.yaml` (hygiene hooks + stylua). `pre-commit install`
-  once per clone; `pre-commit run --all-files` to run manually.
+- **Lint**: `selene init.lua lua/` — config in `selene.toml` (+ `vim.toml` std). CI
+  enforces; the pre-commit hook skips with a warning if selene isn't installed
+  (release binary from Kampfkarren/selene into `~/.local/bin`, or `cargo install selene`).
+- **Hooks**: `.pre-commit-config.yaml` (hygiene hooks + stylua + selene).
+  `pre-commit install` once per clone; `pre-commit run --all-files` to run manually.
+- **Health**: `:checkhealth config` (`lua/config/health.lua`) verifies the external
+  deps this config assumes — rg/fd, tree-sitter CLI + cc + curl (parser installs),
+  clipboard provider, node, venv-first pyrefly, and the dev tooling above.
 - **Smoke test** (also run by CI on every push, after restoring plugins from
   `lazy-lock.json`):
 

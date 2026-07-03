@@ -21,7 +21,8 @@ packages:
   - keychain
   - tree
   - git
-  - xclip
+  - xclip # X11 clipboard provider (nvim clipboard=unnamedplus)
+  - wl-clipboard # Wayland clipboard provider — xclip alone only works via XWayland
   - jq # required by the starship-claude statusline script
   - fd-find
 
