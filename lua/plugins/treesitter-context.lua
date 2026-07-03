@@ -6,8 +6,8 @@ return {
 	"nvim-treesitter/nvim-treesitter-context",
 	event = { "BufReadPost", "BufNewFile" },
 	opts = {
-		max_lines = 3,           -- cap header height (0 = unlimited)
+		max_lines = 3, -- cap header height (0 = unlimited)
 		multiline_threshold = 1, -- collapse multi-line contexts to one line
-		mode = "cursor",         -- context follows the cursor's scope
+		mode = "cursor", -- context follows the cursor's scope
 	},
 }

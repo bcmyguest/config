@@ -12,17 +12,17 @@ return {
 
 		-- tokyonight-ish palette (the active colorscheme)
 		local colors = {
-			bg       = "#202328",
-			fg       = "#bbc2cf",
-			yellow   = "#ECBE7B",
-			cyan     = "#008080",
+			bg = "#202328",
+			fg = "#bbc2cf",
+			yellow = "#ECBE7B",
+			cyan = "#008080",
 			darkblue = "#081633",
-			green    = "#98be65",
-			orange   = "#FF8800",
-			violet   = "#a9a1e1",
-			magenta  = "#c678dd",
-			blue     = "#51afef",
-			red      = "#ec5f67",
+			green = "#98be65",
+			orange = "#FF8800",
+			violet = "#a9a1e1",
+			magenta = "#c678dd",
+			blue = "#51afef",
+			red = "#ec5f67",
 		}
 
 		local conditions = {
@@ -50,12 +50,20 @@ return {
 				},
 			},
 			sections = {
-				lualine_a = {}, lualine_b = {}, lualine_y = {}, lualine_z = {},
-				lualine_c = {}, lualine_x = {},
+				lualine_a = {},
+				lualine_b = {},
+				lualine_y = {},
+				lualine_z = {},
+				lualine_c = {},
+				lualine_x = {},
 			},
 			inactive_sections = {
-				lualine_a = {}, lualine_b = {}, lualine_y = {}, lualine_z = {},
-				lualine_c = {}, lualine_x = {},
+				lualine_a = {},
+				lualine_b = {},
+				lualine_y = {},
+				lualine_z = {},
+				lualine_c = {},
+				lualine_x = {},
 			},
 		}
 
@@ -68,20 +76,38 @@ return {
 		end
 
 		ins_left({
-			function() return "▊" end,
+			function()
+				return "▊"
+			end,
 			color = { fg = colors.blue },
 			padding = { left = 0, right = 1 },
 		})
 
 		ins_left({
-			function() return "" end,
+			function()
+				return ""
+			end,
 			color = function()
 				local mode_color = {
-					n = colors.red, i = colors.green, v = colors.blue, [""] = colors.blue,
-					V = colors.blue, c = colors.magenta, no = colors.red, s = colors.orange,
-					S = colors.orange, [""] = colors.orange, ic = colors.yellow,
-					R = colors.violet, Rv = colors.violet, cv = colors.red, ce = colors.red,
-					r = colors.cyan, rm = colors.cyan, ["r?"] = colors.cyan, ["!"] = colors.red,
+					n = colors.red,
+					i = colors.green,
+					v = colors.blue,
+					[""] = colors.blue,
+					V = colors.blue,
+					c = colors.magenta,
+					no = colors.red,
+					s = colors.orange,
+					S = colors.orange,
+					[""] = colors.orange,
+					ic = colors.yellow,
+					R = colors.violet,
+					Rv = colors.violet,
+					cv = colors.red,
+					ce = colors.red,
+					r = colors.cyan,
+					rm = colors.cyan,
+					["r?"] = colors.cyan,
+					["!"] = colors.red,
 					t = colors.red,
 				}
 				return { fg = mode_color[vim.fn.mode()] }
@@ -112,7 +138,11 @@ return {
 		})
 
 		-- Push the middle separator left and the rest right.
-		ins_left({ function() return "%=" end })
+		ins_left({
+			function()
+				return "%="
+			end,
+		})
 
 		ins_left({
 			-- Every LSP client attached to the buffer (e.g. python shows
@@ -123,7 +153,9 @@ return {
 				for _, client in ipairs(vim.lsp.get_clients({ bufnr = 0 })) do
 					names[#names + 1] = client.name
 				end
-				if #names == 0 then return "No Active Lsp" end
+				if #names == 0 then
+					return "No Active Lsp"
+				end
 				return table.concat(names, ",")
 			end,
 			icon = " LSP:",
@@ -162,7 +194,9 @@ return {
 		})
 
 		ins_right({
-			function() return "▊" end,
+			function()
+				return "▊"
+			end,
 			color = { fg = colors.blue },
 			padding = { left = 1 },
 		})

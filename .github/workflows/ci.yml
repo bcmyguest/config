@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  stylua:
+    name: stylua --check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: JohnnyMorganz/stylua-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
+          args: --check .
+
+  startup:
+    name: headless startup smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Neovim (stable)
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: Link repo as nvim config
+        run: |
+          mkdir -p ~/.config
+          ln -s "$GITHUB_WORKSPACE" ~/.config/nvim
+
+      - name: Restore plugins from lazy-lock.json
+        run: nvim --headless "+Lazy! restore" +qa
+
+      - name: Bare startup produces no errors
+        run: |
+          out=$(nvim --headless "+lua io.write('STARTUP_OK\n')" +qa 2>&1)
+          echo "$out"
+          echo "$out" | grep -q STARTUP_OK
+          if echo "$out" | grep -Eq "stack traceback|Error detected|E5108"; then
+            echo "::error::startup produced errors"; exit 1
+          fi
+
+      - name: Opening a file (treesitter + LSP path) produces no errors
+        run: |
+          out=$(nvim --headless init.lua "+lua vim.wait(1000)" "+lua io.write('FILE_OK\n')" +qa 2>&1)
+          echo "$out"
+          echo "$out" | grep -q FILE_OK
+          if echo "$out" | grep -Eq "stack traceback|Error detected|E5108"; then
+            echo "::error::opening a file produced errors"; exit 1
+          fi

@@ -117,9 +117,9 @@ llama-server -hf ggml-org/gemma-3-1b-it-GGUF
 llama-server -m /home/b/.cache/llama.cpp/ggml-org_Qwen3-Coder-30B-A3B-Instruct-Q8_0-GGUF_qwen3-coder-30b-a3b-instruct-q8_0.gguf -ngl 99 -ub 1024 -b 1024 --ctx-size 0 --cache-reuse 256 --port 8012 --host 127.0.0.1
 
 ```
-## docker 
+## docker
 
-manually installed 
+manually installed
 https://docs.docker.com/engine/install/ubuntu/
 
 ## amd gpu drivers
@@ -140,17 +140,14 @@ sudo apt install "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)"
 sudo apt install amdgpu-dkms
 ```
 
-then 
+then
 
 https://rocm.docs.amd.com/projects/amdsmi/en/latest/install/install.html
 
 
-then 
+then
 
 ```
 python3 -m pip install argcomplete
 activate-global-python-argcomplete --user
 ```
-
-
-

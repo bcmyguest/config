@@ -1,13 +1,23 @@
 -- package manager by configurations
 local mason_lspconfig = require("mason-lspconfig")
-mason_lspconfig.setup {
-	ensure_installed = { "lua_ls", "rust_analyzer", "jsonls", "ruff", "basedpyright", "eslint", "ts_ls", "yamlls", "clangd" },
+mason_lspconfig.setup({
+	ensure_installed = {
+		"lua_ls",
+		"rust_analyzer",
+		"jsonls",
+		"ruff",
+		"basedpyright",
+		"eslint",
+		"ts_ls",
+		"yamlls",
+		"clangd",
+	},
 	-- mason auto-enables every installed server by default. Exclude the Python
 	-- type checkers so they aren't force-enabled behind our backs — the
 	-- conditional vim.lsp.enable() below picks exactly one (pyrefly when the
 	-- venv provides it, else basedpyright).
 	automatic_enable = { exclude = { "basedpyright", "pyrefly" } },
-}
+})
 
 -- -- despite changes to lsp in 0.11, this is still needed.
 -- mason_lspconfig.setup_handlers {
@@ -23,7 +33,7 @@ mason_lspconfig.setup {
 -- LSP attach and capabilities. blink.cmp supplies the completion capabilities
 -- (replaces cmp_nvim_lsp.default_capabilities); get_lsp_capabilities() already
 -- merges Neovim's defaults.
-local lsp_capabilities = require('blink.cmp').get_lsp_capabilities()
+local lsp_capabilities = require("blink.cmp").get_lsp_capabilities()
 -- Load nvim-lspconfig for the side effect: its bundled lsp/<name>.lua configs
 -- (cmd, root_markers, filetypes) land on the runtimepath so vim.lsp.enable()
 -- can pick them up. Path joining now uses native vim.fs.joinpath — the old
@@ -65,7 +75,7 @@ vim.lsp.config["lua_ls"] = {
 		Lua = {
 			workspace = { checkThirdParty = false },
 			telemetry = { enable = false },
-			diagnostics = { globals = { 'vim' } }, -- Get the language server to recognize the `vim` global
+			diagnostics = { globals = { "vim" } }, -- Get the language server to recognize the `vim` global
 			completion = {
 				callSnippets = "Both", -- "Disable", "Replace"
 				displayContext = 6,
@@ -73,11 +83,11 @@ vim.lsp.config["lua_ls"] = {
 			-- hint.enable -> hint = { enable … }
 			hint = {
 				enable = true,
-				arrayIndex = 'Enable',
+				arrayIndex = "Enable",
 				setType = true,
 			},
-		}
-	}
+		},
+	},
 }
 vim.lsp.config["yamlls"] = {
 	capabilities = lsp_capabilities,
@@ -89,8 +99,8 @@ vim.lsp.config["yamlls"] = {
 		-- for the LspNotify autocmd ("Cannot convert given Lua table").
 		redhat = {
 			telemetry = {
-				enabled = false
-			}
+				enabled = false,
+			},
 		},
 		yaml = {
 			-- Use SchemaStore.nvim's catalog instead of yamlls' built-in fetcher
@@ -98,9 +108,9 @@ vim.lsp.config["yamlls"] = {
 			schemaStore = { enable = false, url = "" },
 			schemas = require("schemastore").yaml.schemas(),
 			filetypes = { "yaml", "yaml.docker-compose", "yaml.gitlab", "yml" },
-			single_file_support = true
-		}
-	}
+			single_file_support = true,
+		},
+	},
 }
 vim.lsp.config["jsonls"] = {
 	capabilities = lsp_capabilities,
@@ -140,7 +150,15 @@ local ts_format = {
 }
 vim.lsp.config["ts_ls"] = {
 	capabilities = lsp_capabilities,
-	filetypes = { "javascript", "javascriptreact", "javascript.jsx", "typescript", "typescriptreact", "typescript.tsx", "vue" },
+	filetypes = {
+		"javascript",
+		"javascriptreact",
+		"javascript.jsx",
+		"typescript",
+		"typescriptreact",
+		"typescript.tsx",
+		"vue",
+	},
 	init_options = {
 		plugins = {
 			{
@@ -159,7 +177,7 @@ vim.lsp.config["ts_ls"] = {
 vim.lsp.config["eslint"] = {
 	capabilities = lsp_capabilities,
 	settings = {
-		bin = 'eslint', -- or `eslint_d`
+		bin = "eslint", -- or `eslint_d`
 		-- useFlatConfig is omitted: current eslint-lsp auto-detects flat config
 		-- (eslint.config.js), which is the ESLint 9 default. Force it only to
 		-- pin legacy .eslintrc behaviour.
@@ -180,9 +198,9 @@ vim.lsp.config["eslint"] = {
 			run_on = "type", -- or `save`
 		},
 		completion = {
-			enable = true
-		}
-	}
+			enable = true,
+		},
+	},
 }
 
 vim.lsp.config["ruff"] = {
@@ -191,9 +209,9 @@ vim.lsp.config["ruff"] = {
 	filetypes = { "python" },
 	settings = {
 		code_actions = {
-			enable = false
-		}
-	}
+			enable = false,
+		},
+	},
 }
 -- vim.api.nvim_create_user_command(
 -- 	'Ruff',
@@ -209,20 +227,19 @@ vim.lsp.config["ruff"] = {
 -- 	{ desc = "Reformat python with ruff" }
 -- )
 vim.api.nvim_create_autocmd("LspAttach", {
-	group = vim.api.nvim_create_augroup('lsp_attach_disable_ruff_hover', { clear = true }),
+	group = vim.api.nvim_create_augroup("lsp_attach_disable_ruff_hover", { clear = true }),
 	callback = function(args)
 		local client = vim.lsp.get_client_by_id(args.data.client_id)
 		if client == nil then
 			return
 		end
-		if client.name == 'ruff' then
+		if client.name == "ruff" then
 			-- Disable hover in favor of Pyright
 			client.server_capabilities.hoverProvider = false
 		end
 	end,
-	desc = 'LSP: Disable hover capability from Ruff',
+	desc = "LSP: Disable hover capability from Ruff",
 })
-
 
 vim.lsp.config["basedpyright"] = {
 	capabilities = lsp_capabilities,
@@ -243,18 +260,16 @@ vim.lsp.config["basedpyright"] = {
 				autoIndent = true,
 				autoSearchPaths = true,
 				autoFormatStrings = true,
-				diagnosticMode = 'openFilesOnly',
+				diagnosticMode = "openFilesOnly",
 				inlayHints = {
 					functionReturnTypes = true,
 					genericTypes = true,
 					pytestParameters = true,
 					callArgumentNames = true,
-
 				},
 				typeCheckingMode = "standard",
-				useLibraryCodeForTypes = true
+				useLibraryCodeForTypes = true,
 			},
-
 		},
 		-- Kept (empty): before_init writes settings.python.pythonPath into it.
 		python = {},
@@ -332,8 +347,9 @@ if vim.fn.executable(pyrefly_bin) == 1 then
 else
 	vim.schedule(function()
 		vim.notify(
-			("pyrefly not found (%s) — Python type-checking via pyrefly is off. Install it, e.g. `uv add --dev pyrefly`.")
-			:format(pyrefly_bin),
+			("pyrefly not found (%s) — Python type-checking via pyrefly is off. Install it, e.g. `uv add --dev pyrefly`."):format(
+				pyrefly_bin
+			),
 			vim.log.levels.WARN
 		)
 	end)
@@ -348,7 +364,6 @@ vim.lsp.enable(servers)
 -- which runs the attached LSP formatter via lsp_format = "last". The old
 -- bespoke BufWritePre autocmd lived here.
 
-
-vim.api.nvim_create_autocmd('LspAttach', {
+vim.api.nvim_create_autocmd("LspAttach", {
 	callback = require("config.mappings.lsp").on_attach,
 })

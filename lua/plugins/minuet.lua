@@ -6,19 +6,21 @@ return {
 	cmd = "Minuet",
 	keys = {
 		{ "<leader>mt", "<cmd>Minuet virtualtext toggle<cr>", desc = "Minuet: toggle auto-complete (buffer)" },
-		{ "<leader>mm", "<cmd>Minuet change_model<cr>",       desc = "Minuet: change model" },
-		{ "<leader>mp", "<cmd>Minuet change_provider<cr>",    desc = "Minuet: change provider" },
+		{ "<leader>mm", "<cmd>Minuet change_model<cr>", desc = "Minuet: change model" },
+		{ "<leader>mp", "<cmd>Minuet change_provider<cr>", desc = "Minuet: change provider" },
 	},
 	config = function()
 		require("minuet").setup({
 			provider = "openai_compatible",
 			request_timeout = 5, -- ~0.5s/response with thinking off; headroom for cold buffers
-			n_completions = 1,   -- one request to the single local GPU
+			n_completions = 1, -- one request to the single local GPU
 			provider_options = {
 				openai_compatible = {
 					name = "Lemonade",
 					end_point = "http://127.0.0.1:13305/api/v1/chat/completions",
-					api_key = function() return "lemonade" end, -- lemonade ignores auth
+					api_key = function()
+						return "lemonade"
+					end, -- lemonade ignores auth
 					model = "Qwen3.6-35B-A3B-ThinkingCoder",
 					stream = true,
 					optional = {
@@ -33,11 +35,11 @@ return {
 			virtualtext = {
 				auto_trigger_ft = {}, -- empty = never auto-fire; manual control only
 				keymap = {
-					accept = "<A-A>",         -- accept whole suggestion
-					accept_line = "<A-a>",    -- accept one line
+					accept = "<A-A>", -- accept whole suggestion
+					accept_line = "<A-a>", -- accept one line
 					accept_n_lines = "<A-z>", -- accept N lines (prompts for count)
-					prev = "<A-Y>",           -- cycle back (rarely needed at n_completions=1)
-					next = "<A-y>",           -- TRIGGER: press in insert mode to request a suggestion
+					prev = "<A-Y>", -- cycle back (rarely needed at n_completions=1)
+					next = "<A-y>", -- TRIGGER: press in insert mode to request a suggestion
 					dismiss = "<A-e>",
 				},
 			},

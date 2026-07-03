@@ -74,4 +74,3 @@
   when:
     - not ansible_check_mode
     - version_to_install != current_version
-

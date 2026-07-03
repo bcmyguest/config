@@ -15,7 +15,7 @@ Map("i", "<M-BS>", "<C-o>diw", { desc = "delete current word" })
 Map({ "i", "n" }, "<C-_>", "<Cmd>normal gcc<CR>", { desc = "Toggle comment" })
 
 -- snacks explorer
-Map('n', '<Leader>t', function()
+Map("n", "<Leader>t", function()
 	local picker = require("snacks").picker.get({ source = "explorer" })[1]
 	if picker and not picker.closed then
 		picker:close()
@@ -24,8 +24,8 @@ Map('n', '<Leader>t', function()
 	end
 end, { desc = "Toggle tree view" })
 -- buffers
-Map('n', '<A-h>', '<Cmd>bprev<CR>', { desc = "Previous buffer" })
-Map('n', '<A-l>', '<Cmd>bnext<CR>', { desc = "Next buffer" })
-Map('n', '<Leader>bd', '<cmd>bdelete<CR>', { desc = "Delete buffer" })
+Map("n", "<A-h>", "<Cmd>bprev<CR>", { desc = "Previous buffer" })
+Map("n", "<A-l>", "<Cmd>bnext<CR>", { desc = "Next buffer" })
+Map("n", "<Leader>bd", "<cmd>bdelete<CR>", { desc = "Delete buffer" })
 -- format
-Map('n', '<Leader>gf', vim.lsp.buf.format, { desc = "Format buffer" })
+Map("n", "<Leader>gf", vim.lsp.buf.format, { desc = "Format buffer" })

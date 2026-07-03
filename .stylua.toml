@@ -1,0 +1,7 @@
+# StyLua config — matches the dominant existing style (hard tabs, wide lines).
+# CI (.github/workflows/ci.yml) enforces this with `stylua --check .`.
+column_width = 120
+indent_type = "Tabs"
+indent_width = 4
+quote_style = "AutoPreferDouble"
+call_parentheses = "Always"

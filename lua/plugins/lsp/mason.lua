@@ -35,7 +35,7 @@ return {
 	},
 	-- setup() is called from lua/config/lsp.lua, after mason is ready
 	{ "mason-org/mason-lspconfig.nvim", lazy = true },
-	{ "mfussenegger/nvim-lint",         lazy = true },
+	{ "mfussenegger/nvim-lint", lazy = true },
 	-- required on demand inside the LspAttach on_attach (<Leader>i)
-	{ "stevanmilic/nvim-lspimport",     lazy = true },
+	{ "stevanmilic/nvim-lspimport", lazy = true },
 }

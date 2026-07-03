@@ -81,7 +81,7 @@
       register: lua_check
       changed_when: false
       check_mode: false
-    - name: Show lua version 
+    - name: Show lua version
       debug:
         var: lua_check
 
@@ -100,5 +100,3 @@
     - not ansible_check_mode
     - lua_version is defined
     - lua_version != current_version
-
-

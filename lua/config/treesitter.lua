@@ -29,7 +29,7 @@ vim.api.nvim_create_autocmd("FileType", {
 
 vim.filetype.add({
 	extension = {
-		gotmpl = 'gotmpl',
+		gotmpl = "gotmpl",
 	},
 	pattern = {
 		[".*/templates/.*%.tpl"] = "helm",

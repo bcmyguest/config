@@ -1,9 +1,9 @@
 # AGENTS.md
 ## Lua Project Layout
 
-- `lua/init.lua` is the main entry point that loads `lua/config/lazy.lua` and all plugin configs.  
-- All third‑party plugins are under `lua/plugins`; keep user‑written configs under `lua/config`.  
-- `lua/config` contains modular configuration files for each plugin (e.g. `theme.lua`, `mason.lua`).  
+- `lua/init.lua` is the main entry point that loads `lua/config/lazy.lua` and all plugin configs.
+- All third‑party plugins are under `lua/plugins`; keep user‑written configs under `lua/config`.
+- `lua/config` contains modular configuration files for each plugin (e.g. `theme.lua`, `mason.lua`).
 - `lua/plugins/<plugin>.lua` holds the plugin’s configuration block used by `lazy.nvim`.
 
 ## Build/Lint/Test Commands
@@ -30,4 +30,3 @@
 - **LSP Setup**: Configure LSP servers via `lua/config/mason.lua` and register them in `lua/plugins/lsp.lua` using the `Mason` management pattern.
 - **Tree-sitter**: Use consistent node patterns and avoid complex patterns without proper error handling.
 - **Telescope**: Follow the telescope.nvim pattern for custom pickers and fuzzy finding configurations.
-

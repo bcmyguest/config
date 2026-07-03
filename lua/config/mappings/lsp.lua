@@ -12,31 +12,26 @@ local function on_attach()
 	Map("n", "gi", vim.lsp.buf.implementation, { buffer = 0, desc = "Jump to implementation." })
 	Map("n", "go", vim.lsp.buf.type_definition, { buffer = 0, desc = "Jump to type definition." })
 	Map("n", "gs", vim.lsp.buf.signature_help, { buffer = 0, desc = "Jump to signature help." })
-	Map(
-		"n",
-		"gq",
-		function() vim.lsp.buf.format({ async = true }) end,
-		{ buffer = 0, desc = "Jump to signature help." }
-	)
+	Map("n", "gq", function()
+		vim.lsp.buf.format({ async = true })
+	end, { buffer = 0, desc = "Jump to signature help." })
 	-- Diagnostics
 	Map("n", "<Leader>ds", function()
-			vim.diagnostic.open_float({
-				scope = "line",
-				focusable = false,
-				close_events = {
-					"CursorMoved",
-					"CursorMovedI",
-					"BufHidden",
-					"InsertCharPre",
-					"WinLeave",
-				},
-			})
-		end,
-		{ desc = "Show diagnostic information in hover." })
+		vim.diagnostic.open_float({
+			scope = "line",
+			focusable = false,
+			close_events = {
+				"CursorMoved",
+				"CursorMovedI",
+				"BufHidden",
+				"InsertCharPre",
+				"WinLeave",
+			},
+		})
+	end, { desc = "Show diagnostic information in hover." })
 
 	-- Code actions (handles visual-mode ranges natively; the removed
 	-- range_code_action API was deleted in Neovim 0.7).
-	Map({ "n", "v" }, "<Leader>la", vim.lsp.buf.code_action,
-		{ buffer = 0, desc = "Code action." })
+	Map({ "n", "v" }, "<Leader>la", vim.lsp.buf.code_action, { buffer = 0, desc = "Code action." })
 end
 return { on_attach = on_attach }

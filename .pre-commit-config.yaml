@@ -1,0 +1,23 @@
+# Baseline hygiene hooks + stylua. CI (.github/workflows/ci.yml) enforces
+# formatting too; this catches it before the commit exists.
+# Update deliberately with `pre-commit autoupdate --freeze` and review diffs —
+# tags are mutable, so prefer frozen SHAs when bumping.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-case-conflict
+
+  - repo: https://github.com/JohnnyMorganz/StyLua
+    rev: v2.5.2
+    hooks:
+      - id: stylua-github # downloads the release binary; no cargo needed

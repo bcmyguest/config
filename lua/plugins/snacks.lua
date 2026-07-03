@@ -12,13 +12,13 @@ return {
 		picker = {
 			sources = {
 				explorer = {
-					hidden = true,        -- show dotfiles (nvim-tree filters.dotfiles = false)
-					ignored = true,       -- show git-ignored files (nvim-tree filters.git_ignored = false)
+					hidden = true, -- show dotfiles (nvim-tree filters.dotfiles = false)
+					ignored = true, -- show git-ignored files (nvim-tree filters.git_ignored = false)
 					exclude = { ".git" }, -- hide .git (nvim-tree filters.custom = { "^.git$" })
-					follow_file = true,   -- nvim-tree update_focused_file.enable = true
-					diagnostics = true,   -- nvim-tree diagnostics.enable = true
-					git_status = true,        -- show git status on files
-					git_status_open = false,  -- collapsed folders show aggregate status (nvim-tree diagnostics.show_on_dirs)
+					follow_file = true, -- nvim-tree update_focused_file.enable = true
+					diagnostics = true, -- nvim-tree diagnostics.enable = true
+					git_status = true, -- show git status on files
+					git_status_open = false, -- collapsed folders show aggregate status (nvim-tree diagnostics.show_on_dirs)
 					matcher = { fuzzy = true }, -- fuzzy search (explorer default is fuzzy = false)
 					win = {
 						input = {
@@ -34,7 +34,7 @@ return {
 						preset = "sidebar",
 						preview = false,
 						layout = {
-							width = 30,     -- nvim-tree view.width = 30
+							width = 30, -- nvim-tree view.width = 30
 							min_width = 30,
 						},
 					},
