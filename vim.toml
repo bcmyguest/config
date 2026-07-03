@@ -1,0 +1,9 @@
+# selene std-library definition: lua51 base + an unchecked `vim` global.
+# Copied from folke/lazy.nvim's vim.toml — the de-facto minimal std for
+# Neovim Lua; selene can't model the full nvim API, so `vim` is opaque.
+[selene]
+base = "lua51"
+name = "vim"
+
+[vim]
+any = true

@@ -37,7 +37,7 @@ return {
 				-- miscs = {}, -- Uncomment to turn off hard-coded styles
 			},
 
-			custom_highlights = function(cp)
+			custom_highlights = function(_cp)
 				return {
 					-- Overrides for error highlights:
 					DiagnosticError = { fg = "#ff0000" },

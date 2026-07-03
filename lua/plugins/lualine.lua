@@ -92,13 +92,13 @@ return {
 					n = colors.red,
 					i = colors.green,
 					v = colors.blue,
-					[""] = colors.blue,
+					["\22"] = colors.blue, -- CTRL-V: visual-block ("^V" in the upstream recipe)
 					V = colors.blue,
 					c = colors.magenta,
 					no = colors.red,
 					s = colors.orange,
 					S = colors.orange,
-					[""] = colors.orange,
+					["\19"] = colors.orange, -- CTRL-S: select-block ("^S" in the upstream recipe)
 					ic = colors.yellow,
 					R = colors.violet,
 					Rv = colors.violet,

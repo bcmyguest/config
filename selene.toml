@@ -1,0 +1,7 @@
+# Lua static analysis (selene). std is lua51 (LuaJIT surface) plus the `vim`
+# global defined in vim.toml — same layout folke/lazy.nvim uses.
+std = "vim"
+
+[lints]
+# Plugin specs intentionally mix array items and keys (lazy.nvim spec shape).
+mixed_table = "allow"

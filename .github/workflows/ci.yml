@@ -17,6 +17,22 @@ jobs:
           version: latest
           args: --check .
 
+  selene:
+    name: selene lint
+    runs-on: ubuntu-latest
+    env:
+      SELENE_VERSION: 0.31.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install selene (release binary)
+        run: |
+          curl -fsSL -o selene.zip \
+            "https://github.com/Kampfkarren/selene/releases/download/${SELENE_VERSION}/selene-${SELENE_VERSION}-linux.zip"
+          unzip -o selene.zip selene
+          chmod +x selene
+      - name: Lint
+        run: ./selene init.lua lua/
+
   startup:
     name: headless startup smoke test
     runs-on: ubuntu-latest
