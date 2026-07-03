@@ -1,0 +1,11 @@
+---
+# Arch path. state stays 'present' (not 'latest'): upgrading individual
+# packages without a full -Syu is a partial upgrade, which Arch explicitly
+# does not support. update_cache syncs the package DBs so a fresh box can
+# resolve everything.
+- name: install packages (pacman)
+  community.general.pacman:
+    name: "{{ packages }}"
+    state: present
+    update_cache: true
+  become: true

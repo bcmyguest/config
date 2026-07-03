@@ -1,0 +1,27 @@
+---
+# Arch names for the same toolset as vars/Debian.yml. Renames:
+# build-essential -> base-devel (group: gcc, make, ...), libreadline-dev ->
+# readline, fd-find -> fd, libfuse2* -> fuse2 (libfuse.so.2, the AppImage
+# runtime the nvim role needs).
+packages:
+  - base-devel
+  - readline
+  - unzip
+  - ripgrep
+  - vim
+  - cmake
+  - curl
+  - btop
+  - ca-certificates
+  - tilix
+  - mesa-utils
+  - nvtop
+  - fuse2
+  - keychain
+  - tree
+  - git
+  - xclip
+  - wl-clipboard
+  - jq
+  - fd
+  - fontconfig # fc-cache for the nerdfonts role

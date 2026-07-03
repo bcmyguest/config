@@ -2,6 +2,19 @@
 
 Used to install important config for nvim
 
+## Supported distros
+
+`nvim.yml` runs on **Debian/Ubuntu, Fedora/RHEL and Arch** family distros (the
+play asserts this up front and fails fast elsewhere). Per-distro package
+management lives in `roles/packages` (`tasks/<family>.yml` +
+`vars/<Family>.yml` name maps); every other role is distro-agnostic — static
+GitHub release binaries and `$HOME` installs. Third-party apt repos
+(spotify, microsoft, kubernetes) and PPAs are Debian-only extras; the other
+families install distro packages only.
+
+The opt-in AI stack is narrower: the `lemond` role is Ubuntu-only (Launchpad
+PPA) and `llama-cpp` is x86_64-only (upstream tarball); both assert this.
+
 Claude Code plugins for this setup live in `../claude/plugins/`; after cloning run
 `../claude/install-plugins.sh` to install them.
 
@@ -67,17 +80,21 @@ ansible [core 2.18.6]
 
 `sudo -v` is run before `ansible-playbook`, so `ansible-playbook` will not prompt you for sudo password. `sudo` won't ask for a password for 5 minutes. NEVER run `ansible-playbook` with `sudo` directly.
 
-### Update apt repositories
+### Update package repositories
 
-First we ensure that apt repositories don't produce errors and that all packages are up-to-date. You need to be in the `ansible/` directory to run `ansible-playbook`.
+First we ensure that the system package repositories don't produce errors and that all packages are up-to-date. You need to be in the `ansible/` directory to run `ansible-playbook`.
 
 ```
+# Debian/Ubuntu:
 sudo apt-get update  # notice for failing repositories and clean them up
 sudo apt-get upgrade
+# Fedora/RHEL:  sudo dnf upgrade --refresh
+# Arch:         sudo pacman -Syu
+
 ansible-galaxy install -r requirements.yml  # installs community.general + geerlingguy.docker
 ```
 
-No errors should occur on the last `apt-get update` command.
+No errors should occur on the update command.
 
 ### Run ansible-playbook
 

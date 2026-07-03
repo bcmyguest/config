@@ -1,0 +1,30 @@
+---
+# Fedora/RHEL names for the same toolset as vars/Debian.yml. Renames:
+# build-essential -> gcc + gcc-c++ + make, libreadline-dev -> readline-devel,
+# vim -> vim-enhanced (plain 'vim' is not a Fedora package name),
+# mesa-utils -> glx-utils, libfuse2* -> fuse-libs (libfuse.so.2, the AppImage
+# runtime the nvim role needs). fd-find keeps its Debian name.
+packages:
+  - gcc
+  - gcc-c++
+  - make
+  - readline-devel
+  - unzip
+  - ripgrep
+  - vim-enhanced
+  - cmake
+  - curl
+  - btop
+  - ca-certificates
+  - tilix
+  - glx-utils
+  - nvtop
+  - fuse-libs
+  - keychain
+  - tree
+  - git
+  - xclip
+  - wl-clipboard
+  - jq
+  - fd-find
+  - fontconfig # fc-cache for the nerdfonts role

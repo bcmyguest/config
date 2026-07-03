@@ -1,0 +1,11 @@
+---
+# Fedora / RHEL-family path. The vendor repos and PPAs in debian.yml are
+# Debian-only concerns; here only distro packages are installed.
+# ansible.builtin.package (not ansible.builtin.dnf) so the right backend is
+# picked automatically: dnf on older Fedora/RHEL, dnf5 on Fedora 41+ where the
+# classic dnf module's python bindings no longer exist.
+- name: install packages (dnf)
+  ansible.builtin.package:
+    name: "{{ packages }}"
+    state: latest
+  become: true

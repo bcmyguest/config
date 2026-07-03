@@ -1,5 +1,22 @@
 ---
 - hosts: localhost
+  pre_tasks:
+    # Fail fast with a readable message instead of dying mid-run inside a role.
+    # The per-distro package logic lives in roles/packages; the rest of the
+    # roles are distro-agnostic (static GitHub binaries + $HOME installs).
+    - name: verify this platform is supported
+      ansible.builtin.assert:
+        that:
+          - ansible_system == 'Linux'
+          - ansible_os_family in ['Debian', 'RedHat', 'Archlinux']
+        fail_msg: >-
+          Unsupported platform: {{ ansible_distribution }}
+          ({{ ansible_os_family }}/{{ ansible_system }}). This playbook supports
+          Debian/Ubuntu, Fedora/RHEL and Arch family distros on Linux.
+        success_msg: >-
+          {{ ansible_distribution }} {{ ansible_distribution_version | default('') }}
+          ({{ ansible_os_family }} family) is supported
+      tags: [always]
   roles:
     - role: packages
       tags: [packages, apt]  # 'apt' kept as a legacy tag alias

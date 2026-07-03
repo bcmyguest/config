@@ -5,6 +5,15 @@
 # present apt sees the same URI declared with conflicting Signed-By and bails:
 # "E:Conflicting values set for option Signed-By". We own a single canonical
 # deb822 source (key in files/lemonade-team.asc) and purge any legacy file.
+- name: lemonade-server is only packaged for Ubuntu
+  ansible.builtin.assert:
+    that: ansible_distribution == 'Ubuntu'
+    fail_msg: >-
+      The lemond role installs lemonade-server from the lemonade-team Launchpad
+      PPA, which only builds for Ubuntu releases; this box is
+      {{ ansible_distribution }}. Install lemonade-server by hand or skip the
+      lemond tag.
+
 - name: find legacy lemonade PPA source files
   ansible.builtin.find:
     paths: /etc/apt/sources.list.d

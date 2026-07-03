@@ -1,0 +1,59 @@
+---
+packages:
+  - build-essential
+  - libreadline-dev
+  - unzip
+  - ripgrep
+  - vim
+  - make
+  - cmake
+  - curl
+  - btop
+  - ca-certificates
+  - tilix
+  - mesa-utils
+  - nvtop
+  # - grub-customizer # For managing GRUB bootloader
+  # libfuse2 was renamed libfuse2t64 in the 24.04 time_t (t64) transition; jammy and
+  # earlier still ship libfuse2. Pick the name from the release so both work. Lives in
+  # universe, which the apt role ensures is enabled.
+  - "{{ 'libfuse2t64' if ansible_distribution_version is version('24.04', '>=') else 'libfuse2' }}"
+  - keychain
+  - tree
+  - git
+  - xclip # X11 clipboard provider (nvim clipboard=unnamedplus)
+  - wl-clipboard # Wayland clipboard provider — xclip alone only works via XWayland
+  - jq # required by the starship-claude statusline script
+  - fd-find
+  - fontconfig # fc-cache for the nerdfonts role
+
+# Third-party vendor repos. ansible.builtin.deb822_repository fetches the key at
+# `signed_by`, dearmors it into /etc/apt/keyrings/<name>.gpg, and writes the
+# .sources pinned via Signed-By — no manual gpg / keyserver / dearmor handling.
+# OS codename/version come from facts so the list is release-agnostic.
+apt_repos:
+  - name: spotify
+    uris: https://repository.spotify.com
+    suites: stable
+    components: non-free
+    # Spotify names the key file by its current key id (no "latest" alias); this
+    # is the id published at https://www.spotify.com/download/linux/. On rotation
+    # apt prints NO_PUBKEY <newid> — bump the filename to pubkey_<newid>.gpg.
+    signed_by: https://download.spotify.com/debian/pubkey_5384CE82BA52C83A.gpg
+
+  - name: microsoft-prod
+    uris: "https://packages.microsoft.com/ubuntu/{{ ansible_distribution_version }}/prod"
+    suites: "{{ ansible_distribution_release }}"
+    components: main
+    signed_by: https://packages.microsoft.com/keys/microsoft.asc
+
+  - name: kubernetes
+    uris: "https://pkgs.k8s.io/core:/stable:/v1.28/deb/"
+    suites: "/"
+    signed_by: https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key
+
+# Launchpad PPAs. ansible.builtin.apt_repository installs the repo AND its signing
+# key from Launchpad automatically — nothing to fetch or pin by hand.
+# (saiarcot895/chromium-beta dropped: no noble build.)
+apt_ppas:
+  - graphics-drivers/ppa
