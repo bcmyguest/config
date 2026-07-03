@@ -21,6 +21,7 @@ vim.opt.splitright       = true     -- vertical splits open to the right
 vim.opt.splitbelow       = true     -- horizontal splits open below
 vim.opt.mouse            = "a"      -- mouse in all modes
 vim.opt.cursorline       = true     -- highlight current line (native; replaced nvim-cursorline)
+vim.opt.termguicolors    = true     -- 24-bit color (was set in the old config/theme.lua)
 vim.opt.winborder        = "rounded" -- default border for all floats (hover, signature, etc.)
 
 vim.diagnostic.config({
@@ -56,15 +57,10 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 	end,
 })
 
+-- Plugin setup is owned entirely by lazy.nvim specs under lua/plugins/
+-- (telescope/dap/LSP load lazily via keys/cmd/event triggers). Only
+-- plugin-free config is required here.
 require("config.lazy")
-require("config.telescope")  -- require telescope
-require("mason").setup()     -- require mason
-require("config.treesitter") -- require syntax highlighting
-require("config.mappings")   -- require local mappings file
-require("config.lsp")        -- require local lsp file
-require("config.theme")
-require("config.inlay")
-require("config.git")
-require("bufferline").setup {}
-require("config.icons")
-require("config.opencode")
+require("config.mappings") -- global keymaps + fold options
+require("config.inlay")    -- native inlay hints on LspAttach
+require("config.opencode") -- :OpenCode* user commands

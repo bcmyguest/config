@@ -1,5 +1,5 @@
 -- mapping convenience function for keymaps
-function Map(mode, lhs, rhs, opts)
+local function Map(mode, lhs, rhs, opts)
 	local options = { noremap = true, silent = false }
 	if opts then
 		options = vim.tbl_extend("force", options, opts)
