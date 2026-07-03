@@ -1,8 +1,8 @@
 ---
 - hosts: localhost
   roles:
-    - role: apt
-      tags: [apt]
+    - role: packages
+      tags: [packages, apt]  # 'apt' kept as a legacy tag alias
     - role: nvim
       tags: [nvim]
     - role: lua
