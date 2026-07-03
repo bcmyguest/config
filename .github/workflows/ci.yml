@@ -50,6 +50,18 @@ jobs:
           mkdir -p ~/.config
           ln -s "$GITHUB_WORKSPACE" ~/.config/nvim
 
+      # Whole data dir: plugin clones (lazy/), built artifacts like
+      # telescope-fzf-native, and treesitter parsers (site/). Keyed on the
+      # lockfile, so a plugin bump rebuilds the cache; restore-keys still
+      # serve the previous cache as a starting point on miss.
+      - name: Cache plugins + parsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/nvim
+          key: nvim-data-${{ runner.os }}-${{ hashFiles('lazy-lock.json') }}
+          restore-keys: |
+            nvim-data-${{ runner.os }}-
+
       - name: Restore plugins from lazy-lock.json
         run: nvim --headless "+Lazy! restore" +qa
 
