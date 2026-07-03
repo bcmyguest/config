@@ -10,7 +10,7 @@ jobs:
     name: stylua --check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: JohnnyMorganz/stylua-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -23,7 +23,7 @@ jobs:
     env:
       SELENE_VERSION: 0.31.0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install selene (release binary)
         run: |
           curl -fsSL -o selene.zip \
@@ -37,7 +37,7 @@ jobs:
     name: headless startup smoke test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Neovim (stable)
         uses: rhysd/action-setup-vim@v1
@@ -55,7 +55,7 @@ jobs:
       # lockfile, so a plugin bump rebuilds the cache; restore-keys still
       # serve the previous cache as a starting point on miss.
       - name: Cache plugins + parsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.local/share/nvim
           key: nvim-data-${{ runner.os }}-${{ hashFiles('lazy-lock.json') }}
