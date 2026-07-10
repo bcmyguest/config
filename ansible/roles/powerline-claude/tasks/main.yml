@@ -103,7 +103,6 @@
 
 - name: drop the legacy plugin registration from settings.json
   ansible.builtin.shell: >-
-    set -o pipefail;
     tmp="$(mktemp)" &&
     jq 'del(.extraKnownMarketplaces["starship-claude"])
         | del(.enabledPlugins["starship-claude@starship-claude"])'
