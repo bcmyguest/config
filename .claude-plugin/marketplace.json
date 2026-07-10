@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-marketplace.json",
+  "name": "powerline-claude",
+  "owner": {
+    "name": "Brandon Guest"
+  },
+  "description": "Plugins shipped from the bcmyguest/config repo",
+  "plugins": [
+    {
+      "name": "powerline-claude",
+      "source": "./powerline-claude/plugin",
+      "description": "Configure the powerline-claude status line (theme, modules, separator mode)",
+      "version": "0.1.0"
+    }
+  ]
+}

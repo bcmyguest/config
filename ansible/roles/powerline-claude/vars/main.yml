@@ -6,11 +6,22 @@ powerline_claude_asset: powerline-claude-x86_64-unknown-linux-musl
 powerline_claude_release_url: >-
   https://github.com/{{ powerline_claude_repo }}/releases/latest/download/{{ powerline_claude_asset }}
 
-# Patch merged (recursively) into ~/.claude/settings.json. Flags follow the
-# powerline-go-style CLI; run `powerline-claude --help` for the full surface
-# (--modules, --theme, --mode, --no-progress, --width).
+# Patch merged (recursively) into ~/.claude/settings.json. Three concerns:
+#   * statusLine — points Claude's statusline at the installed binary. Flags
+#     follow the powerline-go-style CLI; run `powerline-claude --help` for the
+#     full surface (--modules, --theme, --mode, --no-progress, --width).
+#   * extraKnownMarketplaces / enabledPlugins — register this repo as a plugin
+#     marketplace so Claude Code picks up the /powerline-claude:configure
+#     command (plugin source: powerline-claude/plugin/).
 powerline_claude_settings_patch:
   statusLine:
     type: command
     padding: 0
     command: ~/.local/bin/powerline-claude
+  extraKnownMarketplaces:
+    powerline-claude:
+      source:
+        source: github
+        repo: "{{ powerline_claude_repo }}"
+  enabledPlugins:
+    powerline-claude@powerline-claude: true

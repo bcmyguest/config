@@ -40,10 +40,9 @@
       tags: [tree-sitter]
     - role: starship
       tags: [starship]
-    - role: starship-claude
-      tags: [starship-claude]
-    # Runs after starship-claude on purpose: both patch statusLine in
-    # ~/.claude/settings.json and the last writer wins.
+    # starship-claude is retired from the run but its role is kept on disk for
+    # reference; powerline-claude owns the Claude Code statusline now and
+    # cleans up the artifacts the old role installed.
     - role: powerline-claude
       tags: [powerline-claude]
 # AI inference (docker, llama-cpp, lemond, openwebui) is opt-in and lives in

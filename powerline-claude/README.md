@@ -75,8 +75,18 @@ git tag powerline-claude-v0.1.0 && git push origin powerline-claude-v0.1.0
 
 Provisioning (`ansible/roles/powerline-claude`) downloads the latest release
 asset to `~/.local/bin/powerline-claude`, falling back to `cargo install
---path` from this checkout when no release is reachable, and points the
-`statusLine` key in `~/.claude/settings.json` here.
+--path` from this checkout when no release is reachable, points the
+`statusLine` key in `~/.claude/settings.json` here, registers this repo as a
+plugin marketplace, and removes the artifacts the retired starship-claude
+role installed.
+
+## Plugin
+
+`plugin/` is a small Claude Code plugin (registered via the repo-root
+`.claude-plugin/marketplace.json`) providing `/powerline-claude:configure`:
+an interactive way to pick a theme, choose and order segments, or change the
+separator mode — it previews candidates by piping a sample payload through
+the binary, then rewrites the `statusLine.command` flags.
 
 ## License
 

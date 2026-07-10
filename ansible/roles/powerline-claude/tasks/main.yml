@@ -71,3 +71,43 @@
       }}
     dest: "{{ ansible_env.HOME }}/.claude/settings.json"
     mode: "0644"
+
+# --- legacy starship-claude cleanup -----------------------------------------
+# The retired role (kept on disk, no longer in the playbook) installed a bash
+# script, a starship.toml, a vendored toolkit, and registered the upstream
+# plugin in settings.json. Remove all of it so re-provisioned machines end up
+# identical to fresh ones.
+
+- name: remove legacy starship-claude artifacts
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ ansible_env.HOME }}/.local/bin/starship-claude"
+    - "{{ ansible_env.HOME }}/.claude/starship-claude"
+    - "{{ ansible_env.HOME }}/.claude/starship.toml"
+    - "{{ ansible_env.HOME }}/.claude/.starship.toml.gen"
+
+- name: check settings.json for the legacy plugin registration
+  ansible.builtin.command:
+    argv:
+      - jq
+      - -e
+      - >-
+        (.extraKnownMarketplaces["starship-claude"] //
+         .enabledPlugins["starship-claude@starship-claude"]) != null
+      - "{{ ansible_env.HOME }}/.claude/settings.json"
+  register: powerline_claude_legacy_keys
+  changed_when: false
+  failed_when: false
+
+- name: drop the legacy plugin registration from settings.json
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    tmp="$(mktemp)" &&
+    jq 'del(.extraKnownMarketplaces["starship-claude"])
+        | del(.enabledPlugins["starship-claude@starship-claude"])'
+    "{{ ansible_env.HOME }}/.claude/settings.json" > "$tmp" &&
+    mv "$tmp" "{{ ansible_env.HOME }}/.claude/settings.json"
+  when: powerline_claude_legacy_keys.rc == 0
+  changed_when: true
