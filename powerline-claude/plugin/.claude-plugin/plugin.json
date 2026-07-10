@@ -1,8 +1,0 @@
-{
-  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
-  "name": "powerline-claude",
-  "description": "Configure the powerline-claude status line: pick a theme, choose and order segments, set the separator mode.",
-  "version": "0.1.0",
-  "license": "AGPL-3.0-only",
-  "repository": "https://github.com/bcmyguest/config"
-}

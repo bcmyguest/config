@@ -21,8 +21,7 @@ The AI inference stack (docker, llama.cpp, lemond, Open WebUI) is separate — s
 │       ├── lsp/          # mason, blink.cmp, lazydev, schemastore
 │       ├── formatting/   # conform, autopairs, guess-indent, indent-blankline, puppeteer
 │       └── themes/       # tokyonight (active), catppuccin
-├── powerline-claude      # Rust statusline for Claude Code (see its README)
-├── .github/workflows     # CI: stylua --check, headless startup smoke test, cargo checks
+├── .github/workflows     # CI: stylua --check, headless startup smoke test
 └── ansible               # machine provisioning (editor toolchain + AI stack)
 ```
 

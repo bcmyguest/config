@@ -1,11 +1,11 @@
 ---
 # powerline-claude renders the Claude Code statusline: a single Rust binary
-# (source: powerline-claude/ at the repo root) that reads the statusline JSON
-# on stdin and prints an ANSI powerline bar. No starship, no jq.
+# (source: https://github.com/bcmyguest/powerline-claude) that reads the
+# statusline JSON on stdin and prints an ANSI powerline bar. No starship, no jq.
 #
 # Install prefers the prebuilt static release asset; when none is reachable
-# (fresh fork, no release cut yet, offline) it falls back to building from the
-# checkout with cargo (provided by the cargo role earlier in the playbook).
+# (non-x86_64 machine, offline) it falls back to `cargo install --git` from
+# that repo (cargo provided by the cargo role earlier in the playbook).
 
 - name: ensure ~/.local/bin exists
   ansible.builtin.file:
@@ -27,8 +27,8 @@
     argv:
       - "{{ ansible_env.HOME }}/.cargo/bin/cargo"
       - install
-      - --path
-      - "{{ playbook_dir }}/../powerline-claude"
+      - --git
+      - "https://github.com/{{ powerline_claude_repo }}"
       - --root
       - "{{ ansible_env.HOME }}/.local"
       - --locked
