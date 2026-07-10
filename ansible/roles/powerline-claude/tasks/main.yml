@@ -1,0 +1,73 @@
+---
+# powerline-claude renders the Claude Code statusline: a single Rust binary
+# (source: powerline-claude/ at the repo root) that reads the statusline JSON
+# on stdin and prints an ANSI powerline bar. No starship, no jq.
+#
+# Install prefers the prebuilt static release asset; when none is reachable
+# (fresh fork, no release cut yet, offline) it falls back to building from the
+# checkout with cargo (provided by the cargo role earlier in the playbook).
+
+- name: ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+- name: download the powerline-claude release binary
+  ansible.builtin.get_url:
+    url: "{{ powerline_claude_release_url }}"
+    dest: "{{ ansible_env.HOME }}/.local/bin/powerline-claude"
+    mode: "0755"
+    force: true
+  register: powerline_claude_download
+  failed_when: false
+
+- name: build powerline-claude from source (release download unavailable)
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_env.HOME }}/.cargo/bin/cargo"
+      - install
+      - --path
+      - "{{ playbook_dir }}/../powerline-claude"
+      - --root
+      - "{{ ansible_env.HOME }}/.local"
+      - --locked
+  when: powerline_claude_download.failed or (powerline_claude_download.status_code | default(0)) not in [200, 304]
+  register: powerline_claude_build
+  changed_when: "'Installed package' in (powerline_claude_build.stderr | default(''))"
+
+- name: the installed binary answers --help
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_env.HOME }}/.local/bin/powerline-claude"
+      - --help
+  changed_when: false
+
+- name: ensure ~/.claude exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.claude"
+    state: directory
+    mode: "0755"
+
+# Merge our keys into settings.json, preserving every other key: read the live
+# file, combine recursively, write back — a re-provision never clobbers what
+# Claude Code has written there (model, hooks, other plugins, ...).
+- name: read existing Claude settings.json
+  ansible.builtin.slurp:
+    src: "{{ ansible_env.HOME }}/.claude/settings.json"
+  register: claude_settings_raw
+  failed_when: false
+
+- name: point the statusLine at powerline-claude
+  ansible.builtin.copy:
+    content: >-
+      {{
+        (
+          (claude_settings_raw.content | b64decode | from_json)
+          if claude_settings_raw.content is defined else {}
+        )
+        | combine(powerline_claude_settings_patch, recursive=True)
+        | to_nice_json(indent=2)
+      }}
+    dest: "{{ ansible_env.HOME }}/.claude/settings.json"
+    mode: "0644"

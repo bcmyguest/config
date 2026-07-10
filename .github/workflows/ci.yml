@@ -82,3 +82,25 @@ jobs:
           if echo "$out" | grep -Eq "stack traceback|Error detected|E5108"; then
             echo "::error::opening a file produced errors"; exit 1
           fi
+
+  powerline-claude:
+    name: powerline-claude (fmt, clippy, test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: powerline-claude
+    steps:
+      - uses: actions/checkout@v7
+      - name: Cache cargo registry + build
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            powerline-claude/target
+          key: powerline-claude-${{ runner.os }}-${{ hashFiles('powerline-claude/Cargo.lock') }}
+          restore-keys: |
+            powerline-claude-${{ runner.os }}-
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test

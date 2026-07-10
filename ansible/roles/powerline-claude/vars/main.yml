@@ -1,0 +1,16 @@
+---
+# Where releases are published (see .github/workflows/powerline-claude-release.yml:
+# tag powerline-claude-vX.Y.Z on main to cut one).
+powerline_claude_repo: bcmyguest/config
+powerline_claude_asset: powerline-claude-x86_64-unknown-linux-musl
+powerline_claude_release_url: >-
+  https://github.com/{{ powerline_claude_repo }}/releases/latest/download/{{ powerline_claude_asset }}
+
+# Patch merged (recursively) into ~/.claude/settings.json. Flags follow the
+# powerline-go-style CLI; run `powerline-claude --help` for the full surface
+# (--modules, --theme, --mode, --no-progress, --width).
+powerline_claude_settings_patch:
+  statusLine:
+    type: command
+    padding: 0
+    command: ~/.local/bin/powerline-claude

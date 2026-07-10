@@ -42,5 +42,9 @@
       tags: [starship]
     - role: starship-claude
       tags: [starship-claude]
+    # Runs after starship-claude on purpose: both patch statusLine in
+    # ~/.claude/settings.json and the last writer wins.
+    - role: powerline-claude
+      tags: [powerline-claude]
 # AI inference (docker, llama-cpp, lemond, openwebui) is opt-in and lives in
 # ai-inference.yml, off the default provisioning path.
