@@ -2,13 +2,12 @@
 # manage python/uv/etc. Ships a single static (musl) binary wrapped in a top-level
 # mise/ dir. Tag is "vYYYY.M.D"; the binary reports the bare calver, so the v-prefix
 # below makes the comparison line up.
-- name: get latest release of mise
-  community.general.github_release:
-    user: jdx
-    repo: mise
-    action: latest_release
-    prerelease: false
-  register: release
+- name: get latest release of mise (cached)
+  ansible.builtin.include_role:
+    name: github-release-cached
+  vars:
+    gh_user: jdx
+    gh_repo: mise
 
 - name: get current version
   ansible.builtin.command:
@@ -41,18 +40,20 @@
 - name: latest release
   debug:
     var: release.tag
+  when: release is defined
 
 - name: pinned version
   debug:
     var: pinned_version
 
-- name: set version to install
+- name: set version to install from release
   set_fact:
     version_to_install: "{{ release.tag }}"
   when:
     - pinned_version is not defined
+    - release is defined
 
-- name: set version to install
+- name: set version to install from pin
   set_fact:
     version_to_install: "{{ pinned_version }}"
   when:
@@ -85,6 +86,7 @@
         owner: "{{ ansible_user_id }}"
   when:
     - not ansible_check_mode
+    - version_to_install | default('') | length > 0
     - version_to_install != current_version
 
 # Activation hook installs mise's shims so it actually manages tool versions in new

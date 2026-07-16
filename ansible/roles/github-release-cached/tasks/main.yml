@@ -1,0 +1,81 @@
+# Cached lookup of the latest GitHub release tag for gh_user/gh_repo. Sets
+# `release` (with .tag) for the calling role, hitting the GitHub API only when
+# the cached tag is older than gh_release_cache_ttl seconds. This keeps repeat
+# provisioning runs from paying one serial API round-trip per role.
+#
+# Callers:
+#   - name: get latest release of <tool> (cached)
+#     ansible.builtin.include_role:
+#       name: github-release-cached
+#     vars:
+#       gh_user: <owner>
+#       gh_repo: <repo>
+- name: build cache path
+  ansible.builtin.set_fact:
+    gh_cache_file: "{{ gh_release_cache_dir }}/{{ gh_user }}--{{ gh_repo }}.tag"
+  check_mode: false
+
+- name: check release cache
+  ansible.builtin.stat:
+    path: "{{ gh_cache_file }}"
+  register: gh_cache
+  check_mode: false
+
+- name: decide cache freshness
+  ansible.builtin.set_fact:
+    gh_cache_fresh: "{{ gh_cache.stat.exists and gh_cache.stat.size > 0 and ((now().timestamp() | int) - (gh_cache.stat.mtime | int)) < (gh_release_cache_ttl | int) }}"
+  check_mode: false
+
+# A skipped task still registers its (tag-less) placeholder into `release`;
+# the cached-tag set_fact below runs later so it wins on the fresh path and
+# `release.tag` is defined either way. Keep this ordering.
+- name: get latest release of {{ gh_user }}/{{ gh_repo }}
+  community.general.github_release:
+    user: "{{ gh_user }}"
+    repo: "{{ gh_repo }}"
+    action: latest_release
+    prerelease: false
+  register: release
+  check_mode: false
+  when: not gh_cache_fresh
+
+- name: read cached release tag
+  ansible.builtin.slurp:
+    src: "{{ gh_cache_file }}"
+  register: gh_cache_content
+  when: gh_cache_fresh
+
+- name: use cached release tag
+  ansible.builtin.set_fact:
+    release:
+      tag: "{{ gh_cache_content.content | b64decode | trim }}"
+  check_mode: false
+  when: gh_cache_fresh
+
+- name: ensure release cache dir exists
+  ansible.builtin.file:
+    path: "{{ gh_release_cache_dir }}"
+    state: directory
+    mode: "0755"
+  check_mode: false
+  when: not gh_cache_fresh
+
+- name: cache release tag
+  ansible.builtin.copy:
+    content: "{{ release.tag }}\n"
+    dest: "{{ gh_cache_file }}"
+    mode: "0644"
+  check_mode: false
+  when: not gh_cache_fresh
+
+# The copy above is a no-op when the tag didn't change, which would leave the
+# mtime stale and force an API call on every run past the TTL — touching keeps
+# the freshness window rolling from the last successful check.
+- name: refresh cache timestamp
+  ansible.builtin.file:
+    path: "{{ gh_cache_file }}"
+    state: touch
+    mode: "0644"
+  changed_when: false
+  check_mode: false
+  when: not gh_cache_fresh

@@ -1,10 +1,9 @@
-- name: get latest release of neovim
-  community.general.github_release:
-    user: neovim
-    repo: neovim
-    action: latest_release
-    prerelease: false
-  register: release
+- name: get latest release of neovim (cached)
+  ansible.builtin.include_role:
+    name: github-release-cached
+  vars:
+    gh_user: neovim
+    gh_repo: neovim
 
 
 - name: get current version
@@ -38,20 +37,21 @@
 - name: latest release
   debug:
     var: release.tag
+  when: release is defined
 
 - name: pinned version
   debug:
     var: neovim_pinned_version
 
-# should be either release.tag or neovim_pinned_version
-- name: set version to install
+- name: set version to install from release
   set_fact:
     version_to_install: "{{ release.tag }}"
   when:
     - neovim_pinned_version is not defined
+    - release is defined
 
 
-- name: set version to install
+- name: set version to install from pin
   set_fact:
     version_to_install: "{{ neovim_pinned_version }}"
   when:
@@ -73,4 +73,5 @@
     force: true
   when:
     - not ansible_check_mode
+    - version_to_install | default('') | length > 0
     - version_to_install != current_version

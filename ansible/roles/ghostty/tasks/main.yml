@@ -12,17 +12,26 @@
       No Ghostty AppImage for {{ ansible_architecture }}; pkgforge-dev publishes
       x86_64 and aarch64 only.
 
-- name: get latest release of ghostty-appimage
-  community.general.github_release:
-    user: pkgforge-dev
-    repo: ghostty-appimage
-    action: latest_release
-    prerelease: false
-  register: release
+- name: get latest release of ghostty-appimage (cached)
+  ansible.builtin.include_role:
+    name: github-release-cached
+  vars:
+    gh_user: pkgforge-dev
+    gh_repo: ghostty-appimage
+
+- name: capture release tag
+  set_fact:
+    release_tag: ""
+  when: release is not defined
+
+- name: capture release tag from release
+  set_fact:
+    release_tag: "{{ release.tag }}"
+  when: release is defined
 
 - name: choose version to install
   ansible.builtin.set_fact:
-    version_to_install: "{{ pinned_version | default(release.tag) }}"
+    version_to_install: "{{ pinned_version | default(release_tag) }}"
   check_mode: false
 
 # Asset filenames drop the leading "v" (tag v1.3.1 -> Ghostty-1.3.1-x86_64.AppImage).
@@ -57,6 +66,7 @@
   when:
     - not ansible_check_mode
     - target_version != current_version
+    - version_to_install | default('') | length > 0
   block:
     - name: ensure ~/.local/bin exists
       ansible.builtin.file:

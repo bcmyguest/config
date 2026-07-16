@@ -10,17 +10,26 @@
       {{ ansible_architecture }}. Build llama.cpp from source or skip the
       llama-cpp tag.
 
-- name: get latest release of llama.cpp
-  community.general.github_release:
-    user: ggml-org
-    repo: llama.cpp
-    action: latest_release
-    prerelease: false
-  register: release
+- name: get latest release of llama.cpp (cached)
+  ansible.builtin.include_role:
+    name: github-release-cached
+  vars:
+    gh_user: ggml-org
+    gh_repo: llama.cpp
+
+- name: capture release tag
+  set_fact:
+    release_tag: ""
+  when: release is not defined
+
+- name: capture release tag from release
+  set_fact:
+    release_tag: "{{ release.tag }}"
+  when: release is defined
 
 - name: choose version to install
   set_fact:
-    version_to_install: "{{ pinned_version | default(release.tag) }}"
+    version_to_install: "{{ pinned_version | default(release_tag) }}"
   check_mode: false
 
 # Release tags look like "b9632"; the binary reports "version: 9632 (<sha>)".
@@ -50,6 +59,7 @@
   when:
     - not ansible_check_mode
     - target_build != current_build
+    - version_to_install | default('') | length > 0
   block:
     - name: create temporary download directory
       ansible.builtin.tempfile:

@@ -1,15 +1,15 @@
-- name: get latest release of tree-sitter
-  community.general.github_release:
-    user: tree-sitter
-    repo: tree-sitter
-    action: latest_release
-    prerelease: false
-  register: release
+- name: get latest release of tree-sitter (cached)
+  ansible.builtin.include_role:
+    name: github-release-cached
+  vars:
+    gh_user: tree-sitter
+    gh_repo: tree-sitter
 - name: extract version from release
   set_fact:
     current_release: "{{ release.tag | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', multiline=True) }}"
   check_mode: false
   when:
+    - release is defined
     - release is succeeded
 
 - name: get current version
@@ -43,16 +43,18 @@
 - name: latest release
   debug:
     var: release.tag
+  when: release is defined
 
 - name: pinned version
   debug:
     msg: "pinned_version: {{ pinned_version | default('(none)') }}"
 
-- name: set version to install
+- name: set version to install from release
   set_fact:
     version_to_install: "{{ release.tag }}"
   when:
     - pinned_version is not defined
+    - release is defined
 
 - name: set version to install
   set_fact:
@@ -79,4 +81,5 @@
         remote_src: true
   when:
     - not ansible_check_mode
+    - version_to_install | default('') | length > 0
     - version_to_install != current_version
