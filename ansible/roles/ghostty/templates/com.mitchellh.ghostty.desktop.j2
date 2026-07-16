@@ -1,0 +1,22 @@
+[Desktop Entry]
+Version=1.0
+Name=Ghostty
+Type=Application
+Comment=A terminal emulator
+# The AppImage's bundled .desktop hardcodes a CI build path in Exec; point at the
+# installed binary instead. DBusActivatable disabled — the AppImage has no D-Bus
+# service file installed, so activation would fail.
+TryExec={{ ghostty_bin }}
+Exec={{ ghostty_bin }} --gtk-single-instance=true
+Icon=com.mitchellh.ghostty
+Categories=System;TerminalEmulator;
+Keywords=terminal;tty;pty;
+StartupNotify=true
+StartupWMClass=com.mitchellh.ghostty
+Terminal=false
+Actions=new-window;
+DBusActivatable=false
+
+[Desktop Action new-window]
+Name=New Window
+Exec={{ ghostty_bin }} --gtk-single-instance=true

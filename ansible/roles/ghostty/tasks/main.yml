@@ -84,3 +84,43 @@
     src: config
     dest: "{{ ghostty_config_dir }}/config"
     mode: "0644"
+
+# Desktop integration so Ghostty shows up in the GNOME/Ubuntu app search. Runs
+# every time (not gated on version) so a launcher fix lands on re-run. libfuse2
+# (needed to *launch* an AppImage) is provided by roles/packages, not here.
+- name: ensure desktop-entry and icon dirs exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ ghostty_applications_dir }}"
+    - "{{ ghostty_icon_dir }}"
+
+- name: install ghostty app icon
+  ansible.builtin.copy:
+    src: com.mitchellh.ghostty.png
+    dest: "{{ ghostty_icon_dir }}/com.mitchellh.ghostty.png"
+    mode: "0644"
+  register: ghostty_icon
+
+- name: install ghostty desktop entry
+  ansible.builtin.template:
+    src: com.mitchellh.ghostty.desktop.j2
+    dest: "{{ ghostty_applications_dir }}/com.mitchellh.ghostty.desktop"
+    mode: "0644"
+  register: ghostty_desktop
+
+- name: refresh desktop database
+  ansible.builtin.command:
+    cmd: update-desktop-database {{ ghostty_applications_dir }}
+  changed_when: false
+  failed_when: false
+  when: ghostty_desktop is changed
+
+- name: refresh icon cache
+  ansible.builtin.command:
+    cmd: gtk-update-icon-cache -f -t {{ ansible_env.HOME }}/.local/share/icons/hicolor
+  changed_when: false
+  failed_when: false
+  when: ghostty_icon is changed
