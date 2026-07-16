@@ -74,12 +74,31 @@
         state: directory
         mode: "0755"
 
+    - name: create temporary download directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: ghostty
+      register: tmpdir
+
     - name: download ghostty AppImage
       ansible.builtin.get_url:
         url: "https://github.com/pkgforge-dev/ghostty-appimage/releases/download/{{ version_to_install }}/{{ ghostty_asset }}"
+        dest: "{{ tmpdir.path }}/{{ ghostty_asset }}"
+        mode: "0755"
+
+    # copy renames atomically on the target, so an interrupted download never
+    # leaves a half-written binary at the install path.
+    - name: install downloaded AppImage
+      ansible.builtin.copy:
+        src: "{{ tmpdir.path }}/{{ ghostty_asset }}"
         dest: "{{ ghostty_bin }}"
         mode: "0755"
-        force: true
+        remote_src: true
+
+    - name: remove download directory
+      ansible.builtin.file:
+        path: "{{ tmpdir.path }}"
+        state: absent
 
 # Config is deployed regardless of version so keybinding edits land on a re-run
 # even when the binary is already current.
