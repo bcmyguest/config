@@ -70,8 +70,9 @@
     state: link
 
 # A failed bind doesn't make lemond exit, so without this the unit reports success
-# while serving nothing. The health probe makes systemd fail the unit and retry
-# (Restart=always comes from the packaged unit).
+# while serving nothing. The health probe makes systemd fail the unit and retry.
+# The override also sets Restart=always: the packaged unit only has
+# Restart=on-failure, which misses clean-exit crashes.
 - name: create lemond override directory
   ansible.builtin.file:
     path: /etc/systemd/system/lemond.service.d
