@@ -1,0 +1,86 @@
+# Ghostty terminal, installed from the community AppImage
+# (pkgforge-dev/ghostty-appimage) — the upstream ghostty-org repo publishes no
+# Linux binary. The AppImage is a single self-contained executable dropped at
+# ~/.local/bin/ghostty; the config is deployed from files/config.
+#
+# Note: AppImages need FUSE at runtime. On Debian/Ubuntu that's `libfuse2`;
+# add it to roles/packages if `ghostty` fails to launch with a FUSE error.
+- name: ghostty AppImage arch is supported
+  ansible.builtin.assert:
+    that: ansible_architecture in ghostty_arch_map
+    fail_msg: >-
+      No Ghostty AppImage for {{ ansible_architecture }}; pkgforge-dev publishes
+      x86_64 and aarch64 only.
+
+- name: get latest release of ghostty-appimage
+  community.general.github_release:
+    user: pkgforge-dev
+    repo: ghostty-appimage
+    action: latest_release
+    prerelease: false
+  register: release
+
+- name: choose version to install
+  ansible.builtin.set_fact:
+    version_to_install: "{{ pinned_version | default(release.tag) }}"
+  check_mode: false
+
+# Asset filenames drop the leading "v" (tag v1.3.1 -> Ghostty-1.3.1-x86_64.AppImage).
+- name: build asset name and target version
+  ansible.builtin.set_fact:
+    ghostty_asset: "Ghostty-{{ version_to_install | regex_replace('^v', '') }}-{{ ghostty_arch_map[ansible_architecture] }}.AppImage"
+    target_version: "{{ version_to_install | regex_replace('^v', '') }}"
+  check_mode: false
+
+# Probe the installed AppImage explicitly (not whatever `ghostty` resolves to on
+# PATH) so idempotency reflects this role's binary. Prints "Ghostty 1.3.1 ...".
+- name: get current ghostty version
+  ansible.builtin.command:
+    argv:
+      - "{{ ghostty_bin }}"
+      - --version
+  register: current_version_raw
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: extract installed version
+  ansible.builtin.set_fact:
+    current_version: "{{ current_version_raw.stdout | default('') | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | first | default('') }}"
+  check_mode: false
+
+- name: show ghostty versions
+  ansible.builtin.debug:
+    msg: "installed={{ current_version | default('none') }} target={{ target_version }}"
+
+- name: install ghostty AppImage
+  when:
+    - not ansible_check_mode
+    - target_version != current_version
+  block:
+    - name: ensure ~/.local/bin exists
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.local/bin"
+        state: directory
+        mode: "0755"
+
+    - name: download ghostty AppImage
+      ansible.builtin.get_url:
+        url: "https://github.com/pkgforge-dev/ghostty-appimage/releases/download/{{ version_to_install }}/{{ ghostty_asset }}"
+        dest: "{{ ghostty_bin }}"
+        mode: "0755"
+        force: true
+
+# Config is deployed regardless of version so keybinding edits land on a re-run
+# even when the binary is already current.
+- name: ensure ghostty config dir exists
+  ansible.builtin.file:
+    path: "{{ ghostty_config_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: deploy ghostty config
+  ansible.builtin.copy:
+    src: config
+    dest: "{{ ghostty_config_dir }}/config"
+    mode: "0644"
