@@ -119,11 +119,16 @@
     state: directory
     mode: "0755"
 
+# window_title_bar.py is the {custom} hook for per-split title bars: it
+# renders each split's nth_window number next to the title.
 - name: deploy kitty config
   ansible.builtin.copy:
-    src: kitty.conf
-    dest: "{{ kitty_config_dir }}/kitty.conf"
+    src: "{{ item }}"
+    dest: "{{ kitty_config_dir }}/{{ item }}"
     mode: "0644"
+  loop:
+    - kitty.conf
+    - window_title_bar.py
 
 # Desktop integration so kitty shows up in the GNOME/Ubuntu app search. The
 # bundle ships a .desktop file but its Exec/Icon assume a system install, so a
