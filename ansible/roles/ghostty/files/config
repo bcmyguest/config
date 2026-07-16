@@ -93,11 +93,11 @@ keybind = ctrl+shift+w=close_surface
 # terminal-maximize
 keybind = ctrl+shift+x=toggle_split_zoom
 
-# Focus splits — Alt+hjkl, vim-style (Tilix session-switch-to-terminal-*)
-keybind = alt+h=goto_split:left
-keybind = alt+j=goto_split:down
-keybind = alt+k=goto_split:up
-keybind = alt+l=goto_split:right
+# Focus splits — Ctrl+Shift+hjkl, vim-style (Tilix session-switch-to-terminal-*)
+keybind = ctrl+shift+h=goto_split:left
+keybind = ctrl+shift+j=goto_split:down
+keybind = ctrl+shift+k=goto_split:up
+keybind = ctrl+shift+l=goto_split:right
 # session-switch-to-next/previous-terminal (override)
 keybind = ctrl+tab=goto_split:next
 keybind = ctrl+shift+tab=goto_split:previous
