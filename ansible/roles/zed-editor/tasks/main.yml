@@ -1,0 +1,145 @@
+# Zed editor, installed from the upstream Linux tarball
+# (zed-industries/zed releases, zed-linux-<arch>.tar.gz). The archive wraps
+# everything in a zed.app/ dir (bin/, lib/, libexec/, share/) — installed
+# to ~/.local/zed with the binary symlinked into ~/.local/bin.
+
+- name: zed release arch is supported
+  ansible.builtin.assert:
+    that: ansible_architecture in zed_arch_map
+    fail_msg: >-
+      No Zed Linux tarball for {{ ansible_architecture }}; upstream publishes
+      x86_64 and aarch64 only.
+
+- name: get latest release of zed (cached)
+  ansible.builtin.include_role:
+    name: github-release-cached
+  vars:
+    gh_user: zed-industries
+    gh_repo: zed
+
+- name: capture release tag
+  set_fact:
+    release_tag: ""
+  when: release is not defined
+
+- name: capture release tag from release
+  set_fact:
+    release_tag: "{{ release.tag }}"
+  when: release is defined
+
+- name: choose version to install
+  ansible.builtin.set_fact:
+    version_to_install: "{{ pinned_version | default(release_tag) }}"
+  check_mode: false
+
+- name: build asset name and target version
+  ansible.builtin.set_fact:
+    zed_asset: "zed-linux-{{ zed_arch_map[ansible_architecture] }}.tar.gz"
+    target_version: "{{ version_to_install | regex_replace('^v', '') }}"
+  check_mode: false
+
+- name: get current zed version
+  ansible.builtin.command:
+    argv:
+      - "{{ zed_bin }}"
+      - --version
+  register: current_version_raw
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: extract installed version
+  set_fact:
+    current_version: "{{ current_version_raw.stdout | default('') | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | default([''], true) | first }}"
+  check_mode: false
+
+- name: show zed versions
+  ansible.builtin.debug:
+    msg: "installed={{ current_version | default('none') }} target={{ target_version }}"
+
+- name: install zed bundle
+  when:
+    - not ansible_check_mode
+    - target_version != current_version
+    - version_to_install | default('') | length > 0
+  block:
+    - name: create tempfile for zed archive
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .tar.gz
+      register: zed_tmp
+
+    - name: download zed tarball
+      ansible.builtin.get_url:
+        url: "https://github.com/zed-industries/zed/releases/download/{{ version_to_install }}/{{ zed_asset }}"
+        dest: "{{ zed_tmp.path }}"
+        mode: "0644"
+        force: true
+
+    # Remove previous install on upgrade so removed files don't linger
+    - name: remove previous zed install
+      ansible.builtin.file:
+        path: "{{ zed_install_dir }}"
+        state: absent
+
+    - name: create zed install dir
+      ansible.builtin.file:
+        path: "{{ zed_install_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: extract zed bundle
+      ansible.builtin.unarchive:
+        src: "{{ zed_tmp.path }}"
+        dest: "{{ zed_install_dir }}"
+        remote_src: true
+
+    - name: remove zed archive tempfile
+      ansible.builtin.file:
+        path: "{{ zed_tmp.path }}"
+        state: absent
+
+- name: ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+# Symlink zed into ~/.local/bin so it's on PATH regardless of version.
+# Runs outside the version-guard block so a broken/deleted link is repaired.
+- name: symlink zed into ~/.local/bin
+  ansible.builtin.file:
+    src: "{{ zed_install_dir }}/zed.app/bin/zed"
+    dest: "{{ ansible_env.HOME }}/.local/bin/zed"
+    state: link
+    force: true
+
+# Config is deployed regardless of version so user edits land on re-run.
+- name: ensure zed config dir exists
+  ansible.builtin.file:
+    path: "{{ zed_config_dir }}"
+    state: directory
+    mode: "0755"
+
+# Desktop integration so Zed shows up in GNOME/Ubuntu app search. Upstream's
+# .desktop references /usr/bin/zed, so we deploy a corrected version with
+# absolute paths to the bundled binary.
+- name: ensure desktop-entry dir exists
+  ansible.builtin.file:
+    path: "{{ zed_applications_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: install zed desktop entry
+  ansible.builtin.template:
+    src: dev.zed.Zed.desktop.j2
+    dest: "{{ zed_applications_dir }}/dev.zed.Zed.desktop"
+    mode: "0644"
+  register: zed_desktop
+
+- name: refresh desktop database
+  ansible.builtin.command:
+    cmd: update-desktop-database {{ zed_applications_dir }}
+  changed_when: false
+  failed_when: false
+  when: zed_desktop is changed

@@ -1,0 +1,14 @@
+---
+# Zed tarball is a self-contained bundle (zed.app/ with bin/, lib/, libexec/,
+# share/ at top level), installed to ~/.local/zed. The binary is symlinked
+# into ~/.local/bin (already on PATH by XDG default).
+zed_install_dir: "{{ ansible_env.HOME }}/.local/zed"
+zed_bin: "{{ zed_install_dir }}/zed.app/bin/zed"
+zed_config_dir: "{{ ansible_env.HOME }}/.config/Zed"
+zed_applications_dir: "{{ ansible_env.HOME }}/.local/share/applications"
+
+# Upstream names Linux assets x86_64/arm64; ansible_architecture says aarch64,
+# so map explicitly and fail loudly on anything else.
+zed_arch_map:
+  x86_64: x86_64
+  aarch64: aarch64
