@@ -1,0 +1,150 @@
+# Kitty terminal, installed from the official Linux binary bundle
+# (kovidgoyal/kitty releases, kitty-X.Y.Z-<arch>.txz). The archive has no
+# top-level directory — bin/, lib/ and share/ extract straight into
+# ~/.local/kitty — and kitty/kitten are symlinked into ~/.local/bin.
+# Keybindings (Tilix parity, mirroring roles/ghostty) are deployed from
+# files/kitty.conf.
+- name: kitty release arch is supported
+  ansible.builtin.assert:
+    that: ansible_architecture in kitty_arch_map
+    fail_msg: >-
+      No kitty Linux bundle for {{ ansible_architecture }}; upstream publishes
+      x86_64 and arm64 only.
+
+- name: get latest release of kitty
+  community.general.github_release:
+    user: kovidgoyal
+    repo: kitty
+    action: latest_release
+    prerelease: false
+  register: release
+
+- name: choose version to install
+  ansible.builtin.set_fact:
+    version_to_install: "{{ pinned_version | default(release.tag) }}"
+  check_mode: false
+
+# Asset filenames drop the leading "v" (tag v0.47.4 -> kitty-0.47.4-x86_64.txz).
+- name: build asset name and target version
+  ansible.builtin.set_fact:
+    kitty_asset: "kitty-{{ version_to_install | regex_replace('^v', '') }}-{{ kitty_arch_map[ansible_architecture] }}.txz"
+    target_version: "{{ version_to_install | regex_replace('^v', '') }}"
+  check_mode: false
+
+# Probe the bundle's own binary (not whatever `kitty` resolves to on PATH) so
+# idempotency reflects this role's install. Prints "kitty 0.47.4 created by ...".
+- name: get current kitty version
+  ansible.builtin.command:
+    argv:
+      - "{{ kitty_bin }}"
+      - --version
+  register: current_version_raw
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: extract installed version
+  ansible.builtin.set_fact:
+    current_version: "{{ current_version_raw.stdout | default('') | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | default([''], true) | first }}"
+  check_mode: false
+
+- name: show kitty versions
+  ansible.builtin.debug:
+    msg: "installed={{ current_version | default('none') }} target={{ target_version }}"
+
+- name: install kitty bundle
+  when:
+    - not ansible_check_mode
+    - target_version != current_version
+  block:
+    - name: create tempfile for kitty archive
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .txz
+      register: kitty_tmp
+
+    - name: download kitty bundle
+      ansible.builtin.get_url:
+        url: "https://github.com/kovidgoyal/kitty/releases/download/{{ version_to_install }}/{{ kitty_asset }}"
+        dest: "{{ kitty_tmp.path }}"
+        mode: "0644"
+        force: true
+
+    # Wipe the old tree on upgrade so files removed upstream don't linger.
+    - name: remove previous kitty install
+      ansible.builtin.file:
+        path: "{{ kitty_install_dir }}"
+        state: absent
+
+    - name: create kitty install dir
+      ansible.builtin.file:
+        path: "{{ kitty_install_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: extract kitty bundle
+      ansible.builtin.unarchive:
+        src: "{{ kitty_tmp.path }}"
+        dest: "{{ kitty_install_dir }}"
+        remote_src: true
+
+    - name: remove kitty archive tempfile
+      ansible.builtin.file:
+        path: "{{ kitty_tmp.path }}"
+        state: absent
+
+- name: ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+# Symlinks live outside the version-guarded block so a deleted link is
+# repaired on re-run even when the bundle is already current.
+- name: symlink kitty and kitten into ~/.local/bin
+  ansible.builtin.file:
+    src: "{{ kitty_install_dir }}/bin/{{ item }}"
+    dest: "{{ ansible_env.HOME }}/.local/bin/{{ item }}"
+    state: link
+    force: true
+  loop:
+    - kitty
+    - kitten
+
+# Config is deployed regardless of version so keybinding edits land on a
+# re-run even when the binary is already current.
+- name: ensure kitty config dir exists
+  ansible.builtin.file:
+    path: "{{ kitty_config_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: deploy kitty config
+  ansible.builtin.copy:
+    src: kitty.conf
+    dest: "{{ kitty_config_dir }}/kitty.conf"
+    mode: "0644"
+
+# Desktop integration so kitty shows up in the GNOME/Ubuntu app search. The
+# bundle ships a .desktop file but its Exec/Icon assume a system install, so a
+# template with absolute paths is deployed instead. The icon is referenced by
+# absolute path from the bundle — no hicolor copy or icon-cache refresh needed.
+- name: ensure desktop-entry dir exists
+  ansible.builtin.file:
+    path: "{{ kitty_applications_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: install kitty desktop entry
+  ansible.builtin.template:
+    src: kitty.desktop.j2
+    dest: "{{ kitty_applications_dir }}/kitty.desktop"
+    mode: "0644"
+  register: kitty_desktop
+
+- name: refresh desktop database
+  ansible.builtin.command:
+    cmd: update-desktop-database {{ kitty_applications_dir }}
+  changed_when: false
+  failed_when: false
+  when: kitty_desktop is changed

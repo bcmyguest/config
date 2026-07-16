@@ -1,0 +1,21 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=kitty
+GenericName=Terminal emulator
+Comment=Fast, feature-rich, GPU based terminal
+# The bundle's own .desktop assumes kitty on PATH and an icon in hicolor;
+# point both at the ~/.local install instead.
+TryExec={{ kitty_bin }}
+Exec={{ kitty_bin }}
+Icon={{ kitty_install_dir }}/share/icons/hicolor/256x256/apps/kitty.png
+Categories=System;TerminalEmulator;
+Keywords=terminal;tty;pty;
+StartupNotify=true
+StartupWMClass=kitty
+Terminal=false
+X-TerminalArgExec=--
+X-TerminalArgTitle=--title
+X-TerminalArgAppId=--class
+X-TerminalArgDir=--working-directory
+X-TerminalArgHold=--hold
