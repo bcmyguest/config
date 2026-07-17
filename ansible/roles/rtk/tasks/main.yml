@@ -1,0 +1,17 @@
+# rtk (Rust Token Killer) user-global custom filters. The rtk binary itself
+# is installed outside ansible (cargo); this only manages the filter config
+# so custom filters (e.g. grepai) survive reprovisioning. Applied via
+# `rtk <tool> ...` fallthrough — the Claude Code hook only auto-rewrites
+# rtk's built-in commands.
+
+- name: ensure rtk config dir exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.config/rtk"
+    state: directory
+    mode: "0755"
+
+- name: deploy rtk custom filters
+  ansible.builtin.copy:
+    src: filters.toml
+    dest: "{{ ansible_env.HOME }}/.config/rtk/filters.toml"
+    mode: "0644"

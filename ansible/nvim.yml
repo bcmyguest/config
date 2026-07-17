@@ -30,6 +30,8 @@
       tags: [mise]
     - role: claude-code
       tags: [claude-code]
+    - role: rtk
+      tags: [rtk]
     - role: cargo
       tags: [cargo]
     - role: nerdfonts
