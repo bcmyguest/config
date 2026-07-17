@@ -1,0 +1,117 @@
+# CodeGraph — local code knowledge graph MCP server for coding agents
+# (colbymchenry/codegraph). Installed from the upstream release bundle to
+# ~/.local/codegraph with the wrapper symlinked into ~/.local/bin.
+#
+# Per-project setup stays manual: `codegraph init` in the repo, and
+# `codegraph install` to wire the MCP server into agents.
+
+- name: codegraph release arch is supported
+  ansible.builtin.assert:
+    that: ansible_architecture in codegraph_arch_map
+    fail_msg: >-
+      No codegraph Linux bundle for {{ ansible_architecture }}; upstream
+      publishes x64 and arm64 only.
+
+- name: get latest release of codegraph (cached)
+  ansible.builtin.include_role:
+    name: github-release-cached
+  vars:
+    gh_user: colbymchenry
+    gh_repo: codegraph
+
+- name: capture release tag
+  set_fact:
+    release_tag: ""
+  when: release is not defined
+
+- name: capture release tag from release
+  set_fact:
+    release_tag: "{{ release.tag }}"
+  when: release is defined
+
+- name: choose version to install
+  ansible.builtin.set_fact:
+    version_to_install: "{{ pinned_version | default(release_tag) }}"
+  check_mode: false
+
+- name: build target version
+  ansible.builtin.set_fact:
+    target_version: "{{ version_to_install | regex_replace('^v', '') }}"
+  check_mode: false
+
+- name: get current codegraph version
+  ansible.builtin.command:
+    argv:
+      - "{{ codegraph_bin }}"
+      - --version
+  register: current_version_raw
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: extract installed version
+  set_fact:
+    current_version: "{{ current_version_raw.stdout | default('') | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | default([''], true) | first }}"
+  check_mode: false
+
+- name: show codegraph versions
+  ansible.builtin.debug:
+    msg: "installed={{ current_version | default('none') }} target={{ target_version }}"
+
+- name: install codegraph bundle
+  when:
+    - not ansible_check_mode
+    - target_version != current_version
+    - version_to_install | default('') | length > 0
+  block:
+    - name: create tempfile for codegraph archive
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .tar.gz
+      register: codegraph_tmp
+
+    - name: download codegraph tarball
+      ansible.builtin.get_url:
+        url: "https://github.com/colbymchenry/codegraph/releases/download/{{ version_to_install }}/{{ codegraph_bundle }}.tar.gz"
+        dest: "{{ codegraph_tmp.path }}"
+        mode: "0644"
+        force: true
+
+    # Remove previous install on upgrade so removed files don't linger
+    - name: remove previous codegraph install
+      ansible.builtin.file:
+        path: "{{ codegraph_install_dir }}"
+        state: absent
+
+    - name: create codegraph install dir
+      ansible.builtin.file:
+        path: "{{ codegraph_install_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: extract codegraph bundle
+      ansible.builtin.unarchive:
+        src: "{{ codegraph_tmp.path }}"
+        dest: "{{ codegraph_install_dir }}"
+        remote_src: true
+
+    - name: remove codegraph archive tempfile
+      ansible.builtin.file:
+        path: "{{ codegraph_tmp.path }}"
+        state: absent
+
+- name: ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+# Symlink outside the version-guard block so a broken/deleted link is
+# repaired. The wrapper script resolves the symlink to find its bundle.
+- name: symlink codegraph into ~/.local/bin
+  ansible.builtin.file:
+    src: "{{ codegraph_bin }}"
+    dest: "{{ ansible_env.HOME }}/.local/bin/codegraph"
+    state: link
+    force: true
+  when: not ansible_check_mode

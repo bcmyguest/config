@@ -14,6 +14,9 @@
 #   - llama-cpp   llama.cpp server build
 #   - lemond      lemonade-server (OpenAI-compatible local LLM serving)
 #   - openwebui   chat frontend for lemond/ollama (docker container)
+#   - codegraph   local code knowledge graph MCP server for coding agents
+#   - grepai      local semantic code search for coding agents; needs ollama
+#                 (pulls the nomic-embed-text embedding model)
 #
 # ollama itself is NOT installed here. If you want it, drop the systemd
 # override at ../ollama.service.d/override.conf into the ollama unit by hand.
@@ -30,3 +33,7 @@
     - role: openwebui
       tags: [openwebui]
       become: true
+    - role: codegraph
+      tags: [codegraph]
+    - role: grepai
+      tags: [grepai]

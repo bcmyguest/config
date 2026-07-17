@@ -1,0 +1,14 @@
+---
+# CodeGraph release tarball is a self-contained bundle
+# (codegraph-linux-<arch>/ with bin/, lib/ and a bundled node runtime),
+# installed to ~/.local/codegraph. The bin/codegraph wrapper resolves
+# symlinks itself, so linking it into ~/.local/bin is upstream-supported.
+codegraph_install_dir: "{{ ansible_env.HOME }}/.local/codegraph"
+codegraph_bundle: "codegraph-linux-{{ codegraph_arch_map[ansible_architecture] }}"
+codegraph_bin: "{{ codegraph_install_dir }}/{{ codegraph_bundle }}/bin/codegraph"
+
+# Upstream names Linux assets x64/arm64; ansible_architecture says
+# x86_64/aarch64, so map explicitly and fail loudly on anything else.
+codegraph_arch_map:
+  x86_64: x64
+  aarch64: arm64

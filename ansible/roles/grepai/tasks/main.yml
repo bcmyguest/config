@@ -1,0 +1,145 @@
+# grepai — local semantic code search + call graphs for coding agents
+# (yoanbernabeu/grepai). Single Go binary into ~/.local/bin, bash
+# completion, and the ollama embedding model it depends on.
+#
+# Per-project setup stays manual: `grepai init` in the repo, and
+# `grepai agent-setup` / `grepai mcp-serve` to wire agents.
+
+- name: grepai release arch is supported
+  ansible.builtin.assert:
+    that: ansible_architecture in grepai_arch_map
+    fail_msg: >-
+      No grepai Linux tarball for {{ ansible_architecture }}; upstream
+      publishes amd64 and arm64 only.
+
+- name: ollama is available
+  ansible.builtin.command:
+    argv:
+      - ollama
+      - --version
+  register: ollama_check
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: fail when ollama is missing
+  ansible.builtin.fail:
+    msg: >-
+      grepai needs ollama for embeddings but `ollama` is not on PATH.
+      Install ollama first (see ai-inference.yml header).
+  when: ollama_check.rc != 0
+
+- name: get latest release of grepai (cached)
+  ansible.builtin.include_role:
+    name: github-release-cached
+  vars:
+    gh_user: yoanbernabeu
+    gh_repo: grepai
+
+- name: capture release tag
+  set_fact:
+    release_tag: ""
+  when: release is not defined
+
+- name: capture release tag from release
+  set_fact:
+    release_tag: "{{ release.tag }}"
+  when: release is defined
+
+- name: choose version to install
+  ansible.builtin.set_fact:
+    version_to_install: "{{ pinned_version | default(release_tag) }}"
+  check_mode: false
+
+- name: build asset name and target version
+  ansible.builtin.set_fact:
+    target_version: "{{ version_to_install | regex_replace('^v', '') }}"
+  check_mode: false
+
+- name: get current grepai version
+  ansible.builtin.command:
+    argv:
+      - "{{ grepai_bin }}"
+      - version
+  register: current_version_raw
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: extract installed version
+  set_fact:
+    current_version: "{{ current_version_raw.stdout | default('') | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | default([''], true) | first }}"
+  check_mode: false
+
+- name: show grepai versions
+  ansible.builtin.debug:
+    msg: "installed={{ current_version | default('none') }} target={{ target_version }}"
+
+- name: ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+# Tarball also carries README/LICENSE/CHANGELOG — extract only the binary.
+- name: install grepai binary
+  ansible.builtin.unarchive:
+    src: "https://github.com/yoanbernabeu/grepai/releases/download/{{ version_to_install }}/grepai_{{ target_version }}_linux_{{ grepai_arch_map[ansible_architecture] }}.tar.gz"
+    dest: "{{ ansible_env.HOME }}/.local/bin"
+    remote_src: true
+    include:
+      - grepai
+    mode: "0755"
+  when:
+    - not ansible_check_mode
+    - target_version != current_version
+    - version_to_install | default('') | length > 0
+
+# Completion is regenerated from the installed binary on every run; the
+# copy below only reports change when the script content actually differs.
+- name: generate bash completion
+  ansible.builtin.command:
+    argv:
+      - "{{ grepai_bin }}"
+      - completion
+      - bash
+  register: grepai_completion
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: ensure bash completion dir exists
+  ansible.builtin.file:
+    path: "{{ grepai_completion_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: install bash completion
+  ansible.builtin.copy:
+    content: "{{ grepai_completion.stdout }}\n"
+    dest: "{{ grepai_completion_dir }}/grepai"
+    mode: "0644"
+  when: not ansible_check_mode
+
+# Embedding model for grepai's default ollama provider. `ollama show`
+# exits non-zero when the model isn't present locally.
+- name: check embedding model is present
+  ansible.builtin.command:
+    argv:
+      - ollama
+      - show
+      - "{{ grepai_embed_model }}"
+  register: grepai_model_check
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: pull embedding model
+  ansible.builtin.command:
+    argv:
+      - ollama
+      - pull
+      - "{{ grepai_embed_model }}"
+  when:
+    - not ansible_check_mode
+    - grepai_model_check.rc != 0
