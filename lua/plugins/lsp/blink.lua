@@ -44,7 +44,15 @@ return {
 			},
 		},
 		-- live as-you-type cmdline menu (old cmp-cmdline / cmp-path behaviour).
-		cmdline = { completion = { menu = { auto_show = true } } },
+		-- Override the global preselect: in cmdline we want NO preselection so
+		-- <Tab> selects+inserts the first match instead of skipping to the second
+		-- (auto_insert fills the cmdline as you cycle — classic wildmenu feel).
+		cmdline = {
+			completion = {
+				menu = { auto_show = true },
+				list = { selection = { preselect = false, auto_insert = true } },
+			},
+		},
 		fuzzy = { implementation = "prefer_rust_with_warning" },
 	},
 	opts_extend = { "sources.default" },
