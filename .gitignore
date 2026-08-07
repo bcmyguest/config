@@ -1,0 +1,5 @@
+# Generated code-index data. Both tools rebuild these from source on demand and
+# write to them continuously (binary .gob indexes, .lock files, append-only
+# stats), so committing them only produces churn and large binary diffs.
+.grepai/
+.codegraph/
