@@ -190,8 +190,8 @@ names as symlinks beside it. `kitty` is the case here — its script also comple
 `kitten`, `edit-in-kitty` and `clone-in-kitty`, which the role links (`aliases` in
 the vars file). A sourced script registers all four by itself and needs no links.
 
-Covered: `mise`, `uv`, `uvx`, `rustup`, `cargo`, `gh`, `grepai`, `opencode`,
-`zed`, `kitty`. Each tool declares which shells its generator genuinely supports,
+Covered: `mise`, `fnox`, `uv`, `uvx`, `rustup`, `cargo`, `gh`, `grepai`,
+`opencode`, `zed`, `kitty`. Each tool declares which shells its generator genuinely supports,
 because two of them do not support all three — `rustup completions fish cargo`
 exits 1 (`cargo does not currently support completions for fish`), and `opencode`
 ignores its shell argument entirely, returning a byte-identical bash script for
@@ -212,6 +212,20 @@ working generator).
   the loader *is* bash-completion: those two helpers are 2.12 names and Ubuntu
   ships 2.11, which only has `_init_completion`. Dropping the flag there gives a
   function that loads and then dies with `_comp_initialize: command not found`.
+
+`fnox` is jdx's other usage-cli tool and hits the same two problems, but only
+has a fix for the first: it needs `usage` at runtime just like mise, and its
+generated bash script calls the same 2.12-only helpers — yet `fnox completion
+bash` exposes no `--include-bash-completion-lib` of its own. The way out is to
+generate through the `usage` CLI instead, which carries the flag generically and
+takes the spec from the tool via `--usage-cmd`:
+
+```
+usage generate completion bash fnox --usage-cmd "fnox usage" --include-bash-completion-lib
+```
+
+That stays pure argv, so it drops into the vars file with no shell pipeline.
+`fnox completion zsh|fish` is used unchanged — the helper problem is bash-only.
 
 Note that `usage` is installed as a mise *shim*, which is only on `PATH` after
 `mise activate` has run in an interactive shell. Ansible inherits the
