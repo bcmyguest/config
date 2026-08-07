@@ -1,0 +1,114 @@
+# gh — GitHub's official CLI (cli/cli). Single static binary into
+# ~/.local/bin, which precedes /usr/bin on PATH, so this shadows any
+# distro-packaged gh (Ubuntu's archive copy lags upstream by years).
+#
+# Shell completion is not generated here: the shell-completions role owns
+# that and already carries a gh entry, regenerating from whichever binary
+# wins on PATH. It runs last in the playbook, after this role.
+
+- name: gh release arch is supported
+  ansible.builtin.assert:
+    that: ansible_architecture in gh_arch_map
+    fail_msg: >-
+      No gh Linux tarball for {{ ansible_architecture }}; this role maps
+      x86_64 and aarch64 only.
+
+- name: get latest release of gh (cached)
+  ansible.builtin.include_role:
+    name: github-release-cached
+  vars:
+    gh_user: cli
+    gh_repo: cli
+
+- name: capture release tag
+  set_fact:
+    release_tag: ""
+  when: release is not defined
+
+- name: capture release tag from release
+  set_fact:
+    release_tag: "{{ release.tag }}"
+  when: release is defined
+
+- name: choose version to install
+  ansible.builtin.set_fact:
+    version_to_install: "{{ pinned_version | default(release_tag) }}"
+  check_mode: false
+
+- name: build target version
+  ansible.builtin.set_fact:
+    target_version: "{{ version_to_install | regex_replace('^v', '') }}"
+  check_mode: false
+
+# Probe gh_bin rather than `gh` on PATH: before the first install the only gh
+# is the distro one, and comparing against its version would make this role
+# reinstall (or skip) based on a binary it does not manage.
+- name: get current gh version
+  ansible.builtin.command:
+    argv:
+      - "{{ gh_bin }}"
+      - --version
+  register: current_version_raw
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: extract installed version
+  set_fact:
+    current_version: "{{ current_version_raw.stdout | default('') | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | default([''], true) | first }}"
+  check_mode: false
+
+- name: show gh versions
+  ansible.builtin.debug:
+    msg: "installed={{ current_version | default('none') }} target={{ target_version }}"
+
+- name: ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+# unarchive fetches a remote src through fetch_file() with no timeout argument,
+# which means a hardcoded 10 seconds — gh's ~40 MB tarball does not finish in
+# that, and the play dies with "The read operation timed out". get_url does take
+# a timeout, so the download is its own step and unarchive works from the local
+# copy. (The other release roles here get away with remote_src because their
+# archives are an order of magnitude smaller.)
+- name: install gh
+  when:
+    - not ansible_check_mode
+    - target_version != current_version
+    - version_to_install | default('') | length > 0
+  block:
+    - name: create a temp dir for the gh download
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: gh
+      register: gh_tmp
+
+    - name: download the gh tarball
+      ansible.builtin.get_url:
+        url: "https://github.com/cli/cli/releases/download/{{ version_to_install }}/gh_{{ target_version }}_linux_{{ gh_arch_map[ansible_architecture] }}.tar.gz"
+        dest: "{{ gh_tmp.path }}/gh.tar.gz"
+        timeout: 300
+        mode: "0644"
+
+    # --strip-components=2 drops the gh_<ver>_linux_<arch>/bin/ prefix so the
+    # binary lands directly in ~/.local/bin.
+    - name: install gh binary
+      ansible.builtin.unarchive:
+        src: "{{ gh_tmp.path }}/gh.tar.gz"
+        dest: "{{ ansible_env.HOME }}/.local/bin"
+        remote_src: true
+        include:
+          - "gh_{{ target_version }}_linux_{{ gh_arch_map[ansible_architecture] }}/bin/gh"
+        extra_opts:
+          - --strip-components=2
+        mode: "0755"
+
+  always:
+    - name: remove the gh download temp dir
+      ansible.builtin.file:
+        path: "{{ gh_tmp.path }}"
+        state: absent
+      when: gh_tmp.path is defined

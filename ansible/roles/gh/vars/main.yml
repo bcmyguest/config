@@ -1,0 +1,13 @@
+---
+# gh ships a tarball wrapping everything in a top-level
+# gh_<x.y.z>_linux_<arch>/ directory: bin/gh, LICENSE, and ~230 man pages.
+# Only the binary is extracted (--strip-components=2 in tasks/main.yml) —
+# pulling the man pages too would mean downloading the archive a second time
+# for a page set that `gh help` already covers.
+gh_bin: "{{ ansible_env.HOME }}/.local/bin/gh"
+
+# Upstream names Linux assets amd64/arm64; ansible_architecture says
+# x86_64/aarch64, so map explicitly and fail loudly on anything else.
+gh_arch_map:
+  x86_64: amd64
+  aarch64: arm64
