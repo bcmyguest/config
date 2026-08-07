@@ -120,6 +120,11 @@
     - { name: bun, spec: "bun@latest" }
     - { name: pnpm, spec: "pnpm@latest" }
     - { name: yarn, spec: "yarn@latest" }
+    # usage (usage.jdx.dev) is a runtime dependency of mise's own shell
+    # completions, not a dev tool: `mise completion <shell>` emits a script that
+    # shells out to `usage complete-word` on every Tab press and prints an error
+    # without it. The shell-completions role gates mise on this binary existing.
+    - { name: usage, spec: "usage@latest" }
   loop_control:
     label: "{{ item.name }}"
   when: item.name not in mise_global_config_text
@@ -129,6 +134,18 @@
   ansible.builtin.command:
     argv: [mise, settings, set, minimum_release_age, "7d"]
   when: "'minimum_release_age' not in mise_global_config_text"
+  changed_when: true
+
+# Auto-activate a project's .venv on cd, which is what direnv would otherwise be
+# installed to do. mise gates this on a uv.lock being present, so directories that
+# aren't uv projects are left alone entirely (no stray .venv, no warning on every
+# prompt). "source" only activates an existing .venv and never creates one, so a
+# plain `cd` has no side effects — `uv sync` / `uv run` still own venv creation.
+# Requires the `mise activate bash` hook above; shims alone don't activate a venv.
+- name: auto-activate uv project virtualenvs on cd
+  ansible.builtin.command:
+    argv: [mise, settings, set, python.uv_venv_auto, "source"]
+  when: "'uv_venv_auto' not in mise_global_config_text"
   changed_when: true
 
 # Remove volta now that mise owns node + the JS tooling. Drops its install dir, the
