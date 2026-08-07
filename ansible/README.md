@@ -91,8 +91,22 @@ sudo apt-get upgrade
 # Fedora/RHEL:  sudo dnf upgrade --refresh
 # Arch:         sudo pacman -Syu
 
-ansible-galaxy install -r requirements.yml  # installs community.general + geerlingguy.docker
 ```
+
+Both playbooks install their galaxy dependencies themselves — a `pre_tasks` step runs
+`ansible-galaxy install -r requirements.yml` (community.general + geerlingguy.docker) —
+so there is no separate step to remember. You can still run it by hand if you want to
+pre-seed or refresh them:
+
+```
+ansible-galaxy install -r requirements.yml
+```
+
+One constraint worth knowing before editing the playbooks: Ansible resolves every
+`roles:` entry when it *loads* the playbook, before any task runs, so a galaxy role
+listed there must already be on disk. That is why `ai-inference.yml` pulls in
+`geerlingguy.docker` with `include_role` in `pre_tasks` (resolved at task runtime,
+after the install) instead of listing it under `roles:`.
 
 No errors should occur on the update command.
 
@@ -110,6 +124,78 @@ ansible-playbook nvim.yml --ask-become-pass
 ansible-playbook nvim.yml --check --diff --ask-become-pass  # Facultative, shows what will be done
 ansible-playbook nvim.yml --ask-become-pass
 ```
+
+## Python virtualenvs (mise, not direnv)
+
+The `mise` role turns on mise's uv integration globally, so there is no direnv and no
+per-project `.envrc`:
+
+```toml
+# ~/.config/mise/config.toml — written by roles/mise
+[settings.python]
+uv_venv_auto = "source"
+```
+
+`cd` into a project that has a `uv.lock` and its `.venv` is activated automatically
+(`VIRTUAL_ENV` set, `.venv/bin` prepended to `PATH`); `cd` out and it is deactivated.
+`"source"` only activates an existing venv — it never creates one, so entering a
+directory has no side effects and `uv sync` / `uv run` still own venv creation.
+Directories without a `uv.lock` are left completely alone.
+
+This relies on the `eval "$(mise activate bash)"` line the role adds to `~/.bashrc`;
+mise's shims alone do not activate a venv.
+
+## Shell completions
+
+The `shell-completions` role (`--tags shell-completions`) generates a completion
+script per tool, per shell, from the installed binaries on every run — so they
+track tool upgrades instead of rotting as checked-in copies. It runs last in
+`nvim.yml` for that reason. Everything is in `$HOME`, so no `become` is needed.
+
+The shell is data, not structure: `roles/shell-completions/vars/main.yml`
+describes each shell and each tool, and the role loops over the (tool × shell)
+matrix. **Only shells actually installed are touched**, so this box (bash only)
+generates bash and silently skips the rest.
+
+| shell | destination | wiring |
+| ----- | ----------- | ------ |
+| bash | `~/.bashrc.d/<tool>-completion.bash` | source loop added to `~/.bashrc` |
+| zsh | `~/.zsh/completions/_<tool>` | dir prepended to `$fpath` in `~/.zshrc` |
+| fish | `~/.config/fish/completions/<tool>.fish` | none — fish autoloads it |
+
+For bash the role deliberately does *not* use the XDG autoload dir
+(`~/.local/share/bash-completion/completions`): that only works when the
+bash-completion package is installed and its dynamic loader is active, whereas an
+explicit source loop works unconditionally.
+
+Covered: `mise`, `uv`, `uvx`, `rustup`, `cargo`, `gh`, `grepai`, `opencode`,
+`zed`, `kitty`. Each tool declares which shells its generator genuinely supports,
+because two of them do not support all three — `rustup completions fish cargo`
+exits 1 (`cargo does not currently support completions for fish`), and `opencode`
+ignores its shell argument entirely, returning a byte-identical bash script for
+all three. Each is also gated on its required binaries being on PATH, so the role
+skips (and cleans up after) anything not installed; a missing tool never fails
+the play. `glab` is listed but skipped here because it isn't installed. The vars
+file records why `rtk`, `codegraph`, `claude` and `ansible` are absent (no
+working generator).
+
+`mise` needs two things beyond the generator, both handled:
+
+- the `usage` CLI ([usage.jdx.dev](https://usage.jdx.dev)) at *runtime* — mise's
+  script shells out to `usage complete-word` on every Tab press and only prints
+  an error without it. The `mise` role pins it globally for this reason.
+- `--include-bash-completion-lib`, which bundles the `_comp_initialize` /
+  `_comp_compgen` helpers into the bash script. Without it the completion errors
+  even when `usage` is present.
+
+Note that `usage` is installed as a mise *shim*, which is only on `PATH` after
+`mise activate` has run in an interactive shell. Ansible inherits the
+non-interactive `PATH`, so the role prepends `~/.local/share/mise/shims`
+explicitly — otherwise mise completions get skipped on a machine where they work
+fine.
+
+New completions only appear in shells started after the run; `exec bash` picks
+them up in an existing one.
 
 ## lemond (lemonade-server) + Open WebUI
 

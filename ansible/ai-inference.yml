@@ -21,10 +21,31 @@
 # ollama itself is NOT installed here. If you want it, drop the systemd
 # override at ../ollama.service.d/override.conf into the ollama unit by hand.
 - hosts: localhost
-  roles:
-    - role: geerlingguy.docker
+  pre_tasks:
+    # Install the galaxy deps so a fresh clone works with a bare `ansible-playbook
+    # ai-inference.yml`, matching nvim.yml.
+    - name: install galaxy requirements
+      ansible.builtin.command:
+        argv: [ansible-galaxy, install, -r, requirements.yml]
+      register: galaxy_requirements
+      changed_when: "'Installing' in galaxy_requirements.stdout"
+      check_mode: false
+      tags: [always]
+
+    # geerlingguy.docker is pulled in here rather than listed under `roles:` below.
+    # Ansible resolves every `roles:` entry when it LOADS the playbook — before any
+    # task runs, and before any earlier play — so a galaxy role named there must
+    # already be on disk or the run dies with "the role was not found". include_role
+    # resolves at task runtime instead, which is after the install above. Keep it a
+    # pre_task: pre_tasks run ahead of `roles:`, preserving docker-before-lemond
+    # ordering (lemond and openwebui need the engine up).
+    - name: docker engine
+      ansible.builtin.include_role:
+        name: geerlingguy.docker
+        apply:
+          become: true
       tags: [docker]
-      become: true
+  roles:
     - role: llama-cpp
       tags: [llama-cpp]
     - role: lemond

@@ -17,6 +17,20 @@
           {{ ansible_distribution }} {{ ansible_distribution_version | default('') }}
           ({{ ansible_os_family }} family) is supported
       tags: [always]
+
+    # Install the galaxy deps in requirements.yml so a fresh clone works with a bare
+    # `ansible-playbook nvim.yml` — no separate `ansible-galaxy install` step. Most
+    # roles need community.general.github_release, which ships with the full ansible
+    # package but not with bare ansible-core. Runs in --check too (the roles below
+    # can't even resolve their modules without it), and reports changed only when
+    # ansible-galaxy actually installed something rather than on every run.
+    - name: install galaxy requirements
+      ansible.builtin.command:
+        argv: [ansible-galaxy, install, -r, requirements.yml]
+      register: galaxy_requirements
+      changed_when: "'Installing' in galaxy_requirements.stdout"
+      check_mode: false
+      tags: [always]
   roles:
     - role: packages
       tags: [packages, apt]  # 'apt' kept as a legacy tag alias
@@ -46,10 +60,16 @@
       tags: [ghostty]
     - role: kitty
       tags: [kitty]
+    - role: zed-editor
+      tags: [zed-editor]
     # starship-claude is retired from the run but its role is kept on disk for
     # reference; powerline-claude owns the Claude Code statusline now and
     # cleans up the artifacts the old role installed.
     - role: powerline-claude
       tags: [powerline-claude]
+    # Last: it regenerates shell completions from the binaries the roles above
+    # just installed/upgraded, so it must run after them.
+    - role: shell-completions
+      tags: [shell-completions]
 # AI inference (docker, llama-cpp, lemond, openwebui) is opt-in and lives in
 # ai-inference.yml, off the default provisioning path.

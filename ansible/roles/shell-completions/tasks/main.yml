@@ -1,0 +1,177 @@
+# Shell completions for the CLI tools this playbook installs. Each script is
+# regenerated from its own binary on every provision run, so completions stay in
+# step with the installed version instead of rotting as a checked-in copy.
+#
+# The shell is data, not structure: vars/main.yml describes where each shell
+# wants its files and which shells each generator supports, and this file loops
+# over the (tool x shell) matrix. Only shells actually installed are touched.
+# Everything lives under $HOME; the role needs no become.
+
+- name: detect which shells are installed
+  ansible.builtin.shell:
+    cmd: command -v {{ item.name | quote }}
+  loop: "{{ shell_completions_shells }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: shell_completions_shell_lookup
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  environment:
+    PATH: "{{ shell_completions_path }}"
+
+- name: keep only the shells present on this machine
+  ansible.builtin.set_fact:
+    shell_completions_active: >-
+      {{ shell_completions_shell_lookup.results | selectattr('rc', 'eq', 0)
+         | map(attribute='item') | list }}
+
+# Resolve each tool's requirements on PATH rather than stat'ing a hardcoded
+# location: these tools install to four different prefixes and mise shims move
+# around. Non-zero exit means "skip this tool", never "fail the play".
+- name: locate the completion generators on PATH
+  ansible.builtin.shell:
+    cmd: |
+      for _bin in {{ item.requires | map('quote') | join(' ') }}; do
+        command -v "$_bin" >/dev/null 2>&1 || exit 1
+      done
+  loop: "{{ shell_completions_tools }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.shells | join('/') }})"
+  register: shell_completions_lookup
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  environment:
+    PATH: "{{ shell_completions_path }}"
+
+- name: note which tools have their requirements satisfied
+  ansible.builtin.set_fact:
+    shell_completions_ready: >-
+      {{ shell_completions_lookup.results | selectattr('rc', 'eq', 0)
+         | map(attribute='item.name') | unique | list }}
+    # difference() so a tool with several entries (mise has one per shell family)
+    # is never listed as both ready and unavailable, which would make the cleanup
+    # task below delete a file the install task just wrote.
+    shell_completions_unavailable: >-
+      {{ shell_completions_lookup.results | rejectattr('rc', 'eq', 0)
+         | map(attribute='item.name') | unique | list
+         | difference(shell_completions_lookup.results | selectattr('rc', 'eq', 0)
+                      | map(attribute='item.name') | unique | list) }}
+
+# Cross tools with active shells, keeping only pairs the generator supports, and
+# resolve {shell}/{tool} into a concrete argv and destination up front so the
+# tasks below stay simple.
+- name: build the tool x shell matrix
+  ansible.builtin.set_fact:
+    shell_completions_matrix: >-
+      {{ shell_completions_matrix | default([])
+         + [{
+              'name': item.0.name,
+              'shell': item.1.name,
+              'argv': item.0.argv | map('replace', '{shell}', item.1.name) | list,
+              'dest': item.1.dir ~ '/' ~ (item.1.filename | replace('{tool}', item.0.name)),
+            }] }}
+  loop: "{{ shell_completions_tools | product(shell_completions_active) | list }}"
+  loop_control:
+    label: "{{ item.0.name }}/{{ item.1.name }}"
+  when:
+    - item.1.name in item.0.shells
+    - item.0.name in shell_completions_ready
+
+- name: show what will be generated
+  ansible.builtin.debug:
+    msg: >-
+      shells={{ shell_completions_active | map(attribute='name') | join(', ') | default('none', true) }}
+      generating={{ shell_completions_matrix | default([])
+                    | map(attribute='name') | unique | join(', ') | default('none', true) }}
+      skipped={{ shell_completions_unavailable | join(', ') | default('none', true) }}
+
+- name: create the completion directories
+  ansible.builtin.file:
+    path: "{{ item.dir }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ shell_completions_active }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# bash has no drop-in convention of its own, so add the loop. `unset _rc` is the
+# last statement on purpose: an unmatched glob leaves the `[ -r ... ]` test
+# failing, and unset resets $? to 0 so the block never poisons the prompt's exit
+# status. No mode: ~/.bashrc usually already exists and re-running should not
+# silently chmod it; on a fresh box blockinfile creates it under umask.
+- name: source the bashrc.d drop-ins from ~/.bashrc
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: bashrc.d"
+    block: |
+      if [ -d "$HOME/.bashrc.d" ]; then
+        for _rc in "$HOME"/.bashrc.d/*.bash; do
+          [ -r "$_rc" ] && . "$_rc"
+        done
+        unset _rc
+      fi
+  when: "'bash' in shell_completions_active | map(attribute='name')"
+
+# zsh loads _<tool> files from $fpath, and only at compinit time - so the dir has
+# to be prepended before compinit runs. compinit is guarded because a user's
+# existing ~/.zshrc very often calls it already and running it twice is wasted
+# startup time.
+- name: put the completions dir on $fpath in ~/.zshrc
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_env.HOME }}/.zshrc"
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: zsh completions"
+    insertbefore: BOF
+    block: |
+      fpath=("$HOME/.zsh/completions" $fpath)
+      if ! typeset -f compinit >/dev/null; then
+        autoload -Uz compinit && compinit
+      fi
+  when: "'zsh' in shell_completions_active | map(attribute='name')"
+
+# fish autoloads from ~/.config/fish/completions with no rc wiring, so there is
+# deliberately no fish equivalent of the two tasks above.
+
+# changed_when: false because generating is a read; the copy below is what
+# reports change. failed_when: false so a tool that drops its completion flag in
+# a future release degrades to "skipped" instead of failing the whole play.
+- name: generate the completion scripts
+  ansible.builtin.command:
+    argv: "{{ item.argv }}"
+  loop: "{{ shell_completions_matrix | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}/{{ item.shell }}"
+  register: shell_completions_generated
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  environment:
+    PATH: "{{ shell_completions_path }}"
+
+- name: install the completion scripts
+  ansible.builtin.copy:
+    content: "{{ item.stdout }}\n"
+    dest: "{{ item.item.dest }}"
+    mode: "0644"
+  loop: "{{ shell_completions_generated.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}/{{ item.item.shell }}"
+  when:
+    - not item.skipped | default(false)
+    - item.rc | default(1) == 0
+    - item.stdout | default('') | length > 0
+
+# Drop scripts for tools that are gone (or whose generator now fails), so an
+# uninstalled tool does not leave a stale completion behind in every new shell.
+# Built from the full tool list rather than the matrix so a tool that lost its
+# requirements since the last run is still cleaned up.
+- name: remove completions for tools that are no longer available
+  ansible.builtin.file:
+    path: "{{ item.1.dir }}/{{ item.1.filename | replace('{tool}', item.0) }}"
+    state: absent
+  loop: "{{ shell_completions_unavailable | product(shell_completions_active) | list }}"
+  loop_control:
+    label: "{{ item.0 }}/{{ item.1.name }}"
