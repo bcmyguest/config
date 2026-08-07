@@ -1,0 +1,13 @@
+---
+# fnox ships a flat tarball holding just the static binary, installed straight
+# into ~/.local/bin. Asset names are plain rust target triples with no version
+# in them: fnox-<arch>-unknown-linux-musl.tar.gz
+fnox_bin: "{{ ansible_env.HOME }}/.local/bin/fnox"
+
+# Upstream names Linux assets by target triple, so ansible_architecture drops in
+# unchanged - no arch map needed, just a guard for anything not published.
+# musl over gnu: the static build has no glibc floor across the three distro
+# families this playbook supports.
+fnox_supported_arch:
+  - x86_64
+  - aarch64

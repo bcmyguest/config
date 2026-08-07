@@ -4,11 +4,7 @@
 return {
 	"milanglacier/minuet-ai.nvim",
 	cmd = "Minuet",
-	keys = {
-		{ "<leader>mt", "<cmd>Minuet virtualtext toggle<cr>", desc = "Minuet: toggle auto-complete (buffer)" },
-		{ "<leader>mm", "<cmd>Minuet change_model<cr>", desc = "Minuet: change model" },
-		{ "<leader>mp", "<cmd>Minuet change_provider<cr>", desc = "Minuet: change provider" },
-	},
+	-- Keymaps (<leader>m*) live in lua/config/mappings.lua; `cmd` keeps this lazy.
 	config = function()
 		require("minuet").setup({
 			provider = "openai_compatible",

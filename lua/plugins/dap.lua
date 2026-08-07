@@ -1,7 +1,6 @@
 -- https://github.com/mfussenegger/nvim-dap
--- like an LSP but for debugging. Loads lazily on first debug keymap; the
--- keymaps (formerly lua/config/mappings/dap.lua) live here as `keys` so the
--- dap/dapui/nio stack stays cold until debugging starts.
+-- like an LSP but for debugging. Loads lazily on first debug keymap; keymaps
+-- live in lua/config/mappings.lua and their inline require pulls this in.
 
 return {
 	{
@@ -11,119 +10,10 @@ return {
 			"nvim-neotest/nvim-nio",
 			"rcarriga/nvim-dap-ui",
 		},
-		keys = {
-			{
-				"<Leader>dc",
-				function()
-					require("dap").run_to_cursor()
-				end,
-				desc = "Run to cursor",
-			},
-			{
-				"<F5>",
-				function()
-					require("dap").continue()
-				end,
-				desc = "Continue debugger",
-			},
-			{
-				"<Leader>do",
-				function()
-					require("dap").step_over()
-				end,
-				desc = "Step over",
-			},
-			{
-				"<Leader>di",
-				function()
-					require("dap").step_into()
-				end,
-				desc = "Step into",
-			},
-			{
-				"<Leader>b",
-				function()
-					require("dap").toggle_breakpoint()
-				end,
-				desc = "Toggle breakpoint",
-			},
-			{
-				"<Leader>B",
-				function()
-					require("dap").toggle_breakpoint()
-				end,
-				desc = "Toggle breakpoint",
-			},
-			{
-				"<Leader>dw",
-				function()
-					require("dapui").eval(nil, { enter = true })
-				end,
-				desc = "Eval word under cursor",
-			},
-			{
-				"<Leader>dr",
-				function()
-					require("dap").restart()
-				end,
-				desc = "Restart debugger",
-			},
-			{
-				"<Leader>lp",
-				function()
-					require("dap").set_breakpoint(nil, nil, vim.fn.input("Log point message: "))
-				end,
-				desc = "Log point",
-			},
-			{
-				"<Leader>dt",
-				function()
-					require("dap").repl.open()
-				end,
-				desc = "Open dap repl",
-			},
-			{
-				"<Leader>dl",
-				function()
-					require("dap").run_last()
-				end,
-				desc = "Run last debug config",
-			},
-			{
-				"<Leader>dh",
-				function()
-					require("dap.ui.widgets").hover()
-				end,
-				mode = { "n", "v" },
-				desc = "Debug hover",
-			},
-			{
-				"<Leader>dp",
-				function()
-					require("dap.ui.widgets").preview()
-				end,
-				mode = { "n", "v" },
-				desc = "Debug preview",
-			},
-			{
-				"<Leader>df",
-				function()
-					local widgets = require("dap.ui.widgets")
-					widgets.centered_float(widgets.frames)
-				end,
-				desc = "Debug window float",
-			},
-			-- <Leader>dS (capital): scopes float. <Leader>ds stays the LSP
-			-- diagnostic float (mappings/lsp.lua) — that mapping wins on LspAttach.
-			{
-				"<Leader>dS",
-				function()
-					local widgets = require("dap.ui.widgets")
-					widgets.centered_float(widgets.scopes)
-				end,
-				desc = "Show debug scopes",
-			},
-		},
+		-- Keymaps (<leader>d*, <F5>, <leader>b/B, <leader>lp) live in
+		-- lua/config/mappings.lua. dap has no cmd/event; the keymaps' inline
+		-- `require("dap")` triggers lazy.nvim's require-hook on first press, so
+		-- the dap/dapui/nio stack stays cold until debugging starts.
 		config = function()
 			local dap, dapui = require("dap"), require("dapui")
 			--			dap.configurations.python = {

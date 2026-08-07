@@ -4,18 +4,11 @@
 return {
 	"folke/which-key.nvim",
 	event = "VeryLazy",
+	-- Keymaps (<leader>?) live in lua/config/mappings.lua. `spec` here only
+	-- registers group labels for the which-key popup, not keymaps.
 	opts = {
-		-- your configuration comes here
-		-- or leave it empty to use the default settings
-		-- refer to the configuration section below
-	},
-	keys = {
-		{
-			"<leader>?",
-			function()
-				require("which-key").show({ global = false })
-			end,
-			desc = "Buffer Local Keymaps (which-key)",
+		spec = {
+			{ "<leader>a", group = "AI/Claude Code" },
 		},
 	},
 }

@@ -42,6 +42,8 @@
       tags: [uv]
     - role: mise
       tags: [mise]
+    - role: fnox
+      tags: [fnox]
     - role: claude-code
       tags: [claude-code]
     - role: rtk

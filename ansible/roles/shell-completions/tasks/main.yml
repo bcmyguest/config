@@ -6,6 +6,11 @@
 # wants its files and which shells each generator supports, and this file loops
 # over the (tool x shell) matrix. Only shells actually installed are touched.
 # Everything lives under $HOME; the role needs no become.
+#
+# Where a shell can autoload a completion on the first Tab for that command, it
+# gets the scripts there instead of in a directory sourced at every shell start.
+# That is worth real time: the bash scripts total ~700 KB and cost ~25-30 ms per
+# interactive shell, versus nothing until the command is used.
 
 - name: detect which shells are installed
   ansible.builtin.shell:
@@ -25,6 +30,48 @@
     shell_completions_active: >-
       {{ shell_completions_shell_lookup.results | selectattr('rc', 'eq', 0)
          | map(attribute='item') | list }}
+
+# Only shells declaring a lazy_probe are candidates, and the probe has to pass on
+# this machine: bash's on-demand loader comes from the bash-completion package,
+# which is not always installed, and is only wired up in interactive shells -
+# hence the probe runs one (`bash -ic`) rather than testing for the file.
+- name: check which shells can autoload completions on demand
+  ansible.builtin.command:
+    argv: "{{ item.lazy_probe }}"
+  loop: "{{ shell_completions_active | selectattr('lazy_probe', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: shell_completions_lazy_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  environment:
+    PATH: "{{ shell_completions_path }}"
+
+- name: note which shells autoload
+  ansible.builtin.set_fact:
+    shell_completions_lazy: >-
+      {{ shell_completions_lazy_probe.results | default([])
+         | selectattr('rc', 'eq', 0) | map(attribute='item.name') | list }}
+
+# One entry per active shell with dir/filename already resolved, so nothing below
+# has to know whether a shell autoloads. An autoloading shell keeps its old
+# location as eager_dir/eager_filename purely so the migration cleanup at the
+# bottom can find what a previous run left there.
+- name: resolve each shell to the directory it will actually be written to
+  ansible.builtin.set_fact:
+    shell_completions_targets: >-
+      {{ shell_completions_targets | default([]) + [
+           item | combine({'lazy': true,
+                           'dir': item.lazy_dir,
+                           'filename': item.lazy_filename,
+                           'eager_dir': item.dir,
+                           'eager_filename': item.filename})
+           if item.name in shell_completions_lazy
+           else item | combine({'lazy': false}) ] }}
+  loop: "{{ shell_completions_active }}"
+  loop_control:
+    label: "{{ item.name }}"
 
 # Resolve each tool's requirements on PATH rather than stat'ing a hardcoded
 # location: these tools install to four different prefixes and mise shims move
@@ -59,6 +106,17 @@
          | difference(shell_completions_lookup.results | selectattr('rc', 'eq', 0)
                       | map(attribute='item.name') | unique | list) }}
 
+# Names whose completion file must not survive: the unavailable tools plus any
+# extra command names they own, so an alias link never outlives its target.
+- name: collect the names to clean up
+  ansible.builtin.set_fact:
+    shell_completions_stale: >-
+      {{ shell_completions_unavailable
+         + (shell_completions_tools
+            | selectattr('name', 'in', shell_completions_unavailable)
+            | selectattr('aliases', 'defined') | map(attribute='aliases')
+            | flatten | unique | list) }}
+
 # Cross tools with active shells, keeping only pairs the generator supports, and
 # resolve {shell}/{tool} into a concrete argv and destination up front so the
 # tasks below stay simple.
@@ -69,10 +127,14 @@
          + [{
               'name': item.0.name,
               'shell': item.1.name,
+              'lazy': item.1.lazy,
+              'aliases': item.0.aliases | default([]),
               'argv': item.0.argv | map('replace', '{shell}', item.1.name) | list,
+              'dir': item.1.dir,
+              'filename': item.1.filename,
               'dest': item.1.dir ~ '/' ~ (item.1.filename | replace('{tool}', item.0.name)),
             }] }}
-  loop: "{{ shell_completions_tools | product(shell_completions_active) | list }}"
+  loop: "{{ shell_completions_tools | product(shell_completions_targets) | list }}"
   loop_control:
     label: "{{ item.0.name }}/{{ item.1.name }}"
   when:
@@ -83,6 +145,7 @@
   ansible.builtin.debug:
     msg: >-
       shells={{ shell_completions_active | map(attribute='name') | join(', ') | default('none', true) }}
+      autoload={{ shell_completions_lazy | join(', ') | default('none', true) }}
       generating={{ shell_completions_matrix | default([])
                     | map(attribute='name') | unique | join(', ') | default('none', true) }}
       skipped={{ shell_completions_unavailable | join(', ') | default('none', true) }}
@@ -92,7 +155,7 @@
     path: "{{ item.dir }}"
     state: directory
     mode: "0755"
-  loop: "{{ shell_completions_active }}"
+  loop: "{{ shell_completions_targets }}"
   loop_control:
     label: "{{ item.name }}"
 
@@ -113,7 +176,7 @@
         done
         unset _rc
       fi
-  when: "'bash' in shell_completions_active | map(attribute='name')"
+  when: "'bash' in shell_completions_active | map(attribute='name') and 'bash' not in shell_completions_lazy"
 
 # zsh loads _<tool> files from $fpath, and only at compinit time - so the dir has
 # to be prepended before compinit runs. compinit is guarded because a user's
@@ -164,6 +227,28 @@
     - item.rc | default(1) == 0
     - item.stdout | default('') | length > 0
 
+# An autoloading shell keys off the command name typed, so a script that also
+# completes other commands needs those names present as links - the same trick
+# the distro completion packages use. Shells that source at startup register
+# every name from the one file, so this is autoload-only. Driven off the generate
+# results, with the same conditions as the install above, to avoid pointing a
+# link at a file that was never written.
+- name: link the extra command names a script completes
+  ansible.builtin.file:
+    src: "{{ item.0.filename | replace('{tool}', item.0.name) }}"
+    dest: "{{ item.0.dir }}/{{ item.0.filename | replace('{tool}', item.1) }}"
+    state: link
+    # force because in --check the target has not been written yet, and because
+    # these names belong to the tool: a plain file sitting on one is a leftover.
+    force: true
+  loop: >-
+    {{ shell_completions_generated.results | default([])
+       | selectattr('rc', 'defined') | selectattr('rc', 'eq', 0)
+       | rejectattr('stdout', 'eq', '') | map(attribute='item')
+       | selectattr('lazy') | subelements('aliases') }}
+  loop_control:
+    label: "{{ item.1 }} -> {{ item.0.name }} ({{ item.0.shell }})"
+
 # Drop scripts for tools that are gone (or whose generator now fails), so an
 # uninstalled tool does not leave a stale completion behind in every new shell.
 # Built from the full tool list rather than the matrix so a tool that lost its
@@ -172,6 +257,47 @@
   ansible.builtin.file:
     path: "{{ item.1.dir }}/{{ item.1.filename | replace('{tool}', item.0) }}"
     state: absent
-  loop: "{{ shell_completions_unavailable | product(shell_completions_active) | list }}"
+  loop: "{{ shell_completions_stale | product(shell_completions_targets) | list }}"
   loop_control:
     label: "{{ item.0 }}/{{ item.1.name }}"
+
+# A shell that used to source at startup and now autoloads has a full set of
+# scripts in its old directory. They would still be sourced, and would shadow the
+# autoloaded copies with whatever version was current when they were written.
+- name: remove the startup copies a now-autoloading shell left behind
+  ansible.builtin.file:
+    path: "{{ item.0.eager_dir }}/{{ item.0.eager_filename | replace('{tool}', item.1) }}"
+    state: absent
+  loop: >-
+    {{ shell_completions_targets | selectattr('lazy') | list
+       | product(shell_completions_tools | map(attribute='name') | unique | list) | list }}
+  loop_control:
+    label: "{{ item.1 }} ({{ item.0.name }})"
+
+# ...and once that directory is empty, the loop in ~/.bashrc has nothing left to
+# source. Only retire it if nothing else is in there: the drop-in dir is a fine
+# place for the user's own snippets and this role does not own everything in it.
+- name: check whether anything still uses the bashrc.d drop-in directory
+  ansible.builtin.find:
+    paths: "{{ ansible_env.HOME }}/.bashrc.d"
+    file_type: any
+  register: shell_completions_leftovers
+  changed_when: false
+  when: "'bash' in shell_completions_lazy"
+
+- name: retire the bashrc.d drop-in loop once nothing is left to source
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: bashrc.d"
+    state: absent
+  when:
+    - "'bash' in shell_completions_lazy"
+    - shell_completions_leftovers.matched | default(1) == 0
+
+- name: remove the empty bashrc.d directory
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.bashrc.d"
+    state: absent
+  when:
+    - "'bash' in shell_completions_lazy"
+    - shell_completions_leftovers.matched | default(1) == 0

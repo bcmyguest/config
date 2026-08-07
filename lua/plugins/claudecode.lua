@@ -20,23 +20,7 @@ return {
 		"ClaudeCodeDiffDeny",
 		"ClaudeCodeCloseAllDiffs",
 	},
-	keys = {
-		{ "<leader>a", nil, desc = "AI/Claude Code" },
-		{ "<M-,>", "<cmd>ClaudeCode<cr>", mode = { "n", "t" }, desc = "Toggle Claude" },
-		{ "<leader>ac", "<cmd>ClaudeCode<cr>", desc = "Toggle Claude" },
-		{ "<leader>af", "<cmd>ClaudeCodeFocus<cr>", desc = "Focus Claude" },
-		{ "<leader>ar", "<cmd>ClaudeCode --resume<cr>", desc = "Resume Claude" },
-		{ "<leader>aC", "<cmd>ClaudeCode --continue<cr>", desc = "Continue Claude" },
-		{ "<leader>am", "<cmd>ClaudeCodeSelectModel<cr>", desc = "Select Claude model" },
-		{ "<leader>ab", "<cmd>ClaudeCodeAdd %<cr>", desc = "Add current buffer" },
-		{ "<leader>as", "<cmd>ClaudeCodeSend<cr>", mode = "v", desc = "Send to Claude" },
-		{
-			"<leader>as",
-			"<cmd>ClaudeCodeTreeAdd<cr>",
-			desc = "Add file",
-			ft = { "neo-tree", "oil", "minifiles", "netrw", "snacks_picker_list" },
-		},
-		{ "<leader>aa", "<cmd>ClaudeCodeDiffAccept<cr>", desc = "Accept diff" },
-		{ "<leader>ad", "<cmd>ClaudeCodeDiffDeny<cr>", desc = "Deny diff" },
-	},
+	-- Keymaps (<leader>a*, <M-,>) live in lua/config/mappings.lua; `cmd` keeps
+	-- this lazy. The <leader>a which-key group label lives in which-key.lua
+	-- opts.spec.
 }

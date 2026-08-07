@@ -159,14 +159,36 @@ generates bash and silently skips the rest.
 
 | shell | destination | wiring |
 | ----- | ----------- | ------ |
-| bash | `~/.bashrc.d/<tool>-completion.bash` | source loop added to `~/.bashrc` |
+| bash (autoload) | `~/.local/share/bash-completion/completions/<tool>` | none — the loader finds it |
+| bash (fallback) | `~/.bashrc.d/<tool>-completion.bash` | source loop added to `~/.bashrc` |
 | zsh | `~/.zsh/completions/_<tool>` | dir prepended to `$fpath` in `~/.zshrc` |
 | fish | `~/.config/fish/completions/<tool>.fish` | none — fish autoloads it |
 
-For bash the role deliberately does *not* use the XDG autoload dir
-(`~/.local/share/bash-completion/completions`): that only works when the
-bash-completion package is installed and its dynamic loader is active, whereas an
-explicit source loop works unconditionally.
+bash gets two possible destinations because it is the only one of the three that
+does not read a completions directory on its own. Where the bash-completion
+package's dynamic loader is available, a script in its XDG dir is read on the
+*first Tab for that command* and costs nothing before that. Where it is not, the
+scripts have to be sourced at every shell start instead.
+
+Which one is used is probed, not assumed — the loader is only wired up in
+interactive shells, so the role asks one:
+
+```
+bash -ic 'declare -F _comp_load >/dev/null || declare -F __load_completion >/dev/null'
+```
+
+The two names are the same function either side of bash-completion 2.12. Sourcing
+at startup is not cheap: the scripts here total ~700 KB and cost ~25–30 ms on
+every interactive shell, so autoloading is preferred wherever it works. A box that
+switches over is migrated automatically — the old copies are deleted, and once
+`~/.bashrc.d` is empty the role retires its own `~/.bashrc` block and removes the
+directory. Anything else left in there is respected and the loop stays.
+
+One wrinkle only autoloading has: the loader looks for a file named after the
+command being typed, so a script that completes *several* commands needs the extra
+names as symlinks beside it. `kitty` is the case here — its script also completes
+`kitten`, `edit-in-kitty` and `clone-in-kitty`, which the role links (`aliases` in
+the vars file). A sourced script registers all four by itself and needs no links.
 
 Covered: `mise`, `uv`, `uvx`, `rustup`, `cargo`, `gh`, `grepai`, `opencode`,
 `zed`, `kitty`. Each tool declares which shells its generator genuinely supports,
@@ -186,7 +208,10 @@ working generator).
   an error without it. The `mise` role pins it globally for this reason.
 - `--include-bash-completion-lib`, which bundles the `_comp_initialize` /
   `_comp_compgen` helpers into the bash script. Without it the completion errors
-  even when `usage` is present.
+  even when `usage` is present. This stays on under autoloading too, even though
+  the loader *is* bash-completion: those two helpers are 2.12 names and Ubuntu
+  ships 2.11, which only has `_init_completion`. Dropping the flag there gives a
+  function that loads and then dies with `_comp_initialize: command not found`.
 
 Note that `usage` is installed as a mise *shim*, which is only on `PATH` after
 `mise activate` has run in an interactive shell. Ansible inherits the
@@ -195,7 +220,8 @@ explicitly — otherwise mise completions get skipped on a machine where they wo
 fine.
 
 New completions only appear in shells started after the run; `exec bash` picks
-them up in an existing one.
+them up in an existing one. Under autoloading, `complete -p <tool>` is empty until
+the first Tab for that command — that is the mechanism working, not a failure.
 
 ## lemond (lemonade-server) + Open WebUI
 

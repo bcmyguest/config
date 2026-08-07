@@ -85,3 +85,5 @@ catppuccin is installed and configured as an alternate
   ```bash
   nvim --headless "+lua io.write('STARTUP_OK\n')" +qa
   ```
+
+Note: if wifi performance is an issue, consider editing NetworkManager's wifi.powersave setting.

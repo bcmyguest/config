@@ -1,0 +1,83 @@
+# fnox - encrypted secrets/env manager driven by a per-project fnox.toml
+# (jdx/fnox). Single static musl binary into ~/.local/bin.
+#
+# Per-project setup stays manual: `fnox init` in the repo, then `fnox set` /
+# `fnox provider add` to wire up a backend.
+#
+# Shell completions are not generated here - roles/shell-completions owns that
+# for every tool in the playbook and runs last, after this role has installed
+# the binary it generates from.
+
+- name: fnox release arch is supported
+  ansible.builtin.assert:
+    that: ansible_architecture in fnox_supported_arch
+    fail_msg: >-
+      No fnox Linux tarball for {{ ansible_architecture }}; upstream
+      publishes x86_64 and aarch64 only.
+
+- name: get latest release of fnox (cached)
+  ansible.builtin.include_role:
+    name: github-release-cached
+  vars:
+    gh_user: jdx
+    gh_repo: fnox
+
+- name: capture release tag
+  set_fact:
+    release_tag: ""
+  when: release is not defined
+
+- name: capture release tag from release
+  set_fact:
+    release_tag: "{{ release.tag }}"
+  when: release is defined
+
+- name: choose version to install
+  ansible.builtin.set_fact:
+    version_to_install: "{{ pinned_version | default(release_tag) }}"
+  check_mode: false
+
+- name: build target version
+  ansible.builtin.set_fact:
+    target_version: "{{ version_to_install | regex_replace('^v', '') }}"
+  check_mode: false
+
+- name: get current fnox version
+  ansible.builtin.command:
+    argv:
+      - "{{ fnox_bin }}"
+      - --version
+  register: current_version_raw
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: extract installed version
+  set_fact:
+    current_version: "{{ current_version_raw.stdout | default('') | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | default([''], true) | first }}"
+  check_mode: false
+
+- name: show fnox versions
+  ansible.builtin.debug:
+    msg: "installed={{ current_version | default('none') }} target={{ target_version }}"
+
+- name: ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+# Tarball is a single bare binary at the root, so unarchive lands it directly
+# on PATH with no tempdir/copy dance.
+- name: install fnox binary
+  ansible.builtin.unarchive:
+    src: "https://github.com/jdx/fnox/releases/download/{{ version_to_install }}/fnox-{{ ansible_architecture }}-unknown-linux-musl.tar.gz"
+    dest: "{{ ansible_env.HOME }}/.local/bin"
+    remote_src: true
+    include:
+      - fnox
+    mode: "0755"
+  when:
+    - not ansible_check_mode
+    - target_version != current_version
+    - version_to_install | default('') | length > 0
