@@ -25,3 +25,4 @@ packages:
   - jq
   - fd
   - fontconfig # fc-cache for the nerdfonts role
+  - python-argcomplete # supplies register-python-argcomplete, the generator the shell-completions role runs for ansible

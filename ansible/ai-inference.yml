@@ -17,6 +17,9 @@
 #   - codegraph   local code knowledge graph MCP server for coding agents
 #   - grepai      local semantic code search for coding agents; needs ollama
 #                 (pulls the nomic-embed-text embedding model)
+#   - shell-completions
+#                 regenerates shell completions for whatever of the above is
+#                 installed; shared with nvim.yml, runs last
 #
 # ollama itself is NOT installed here. If you want it, drop the systemd
 # override at ../ollama.service.d/override.conf into the ollama unit by hand.
@@ -58,3 +61,12 @@
       tags: [codegraph]
     - role: grepai
       tags: [grepai]
+    # Last, same as in nvim.yml: it regenerates shell completions from the
+    # binaries the roles above just installed/upgraded. Without it here, the
+    # tools this playbook installs would only pick up completions later and by
+    # accident, whenever nvim.yml next ran and happened to find them on PATH.
+    # The role's registry is shared and gated on each tool's binaries being on
+    # PATH, so the two playbooks generate the overlap identically and neither
+    # deletes the other's files.
+    - role: shell-completions
+      tags: [shell-completions]

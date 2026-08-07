@@ -32,29 +32,38 @@ shell_completions_shells:
     filename: "{tool}.fish"
 
 # ansible-playbook may be launched from a login shell that has not picked up
-# every tool dir yet (cargo and opencode install outside ~/.local/bin), so the
-# lookup and generate tasks run with these prepended explicitly.
+# every tool dir yet (cargo, opencode and llama.cpp install outside
+# ~/.local/bin), so the lookup and generate tasks run with these prepended
+# explicitly.
 #
 # The mise shim dir matters for `usage`: mise installs it as a shim, and shims
 # are only on PATH once `mise activate` has run in an interactive shell. Ansible
 # inherits the non-interactive PATH, so without this the usage lookup fails and
 # mise completions get skipped on a machine where they would work fine.
+#
+# ~/.local/llama-cpp/bin is the same story: the llama-cpp role keeps its many
+# .so files out of ~/.local/bin and adds the dir to ~/.bashrc, so it only exists
+# on an interactive PATH.
 shell_completions_path: >-
   {{ ansible_env.HOME }}/.local/bin:{{ ansible_env.HOME }}/.cargo/bin:{{
   ansible_env.HOME }}/.opencode/bin:{{ ansible_env.HOME
-  }}/.local/share/mise/shims:{{ ansible_env.PATH }}
+  }}/.local/share/mise/shims:{{ ansible_env.HOME }}/.local/llama-cpp/bin:{{
+  ansible_env.PATH }}
 
 # Every entry was verified against the real binary: the argv exits 0, writes a
 # completion script to stdout, and is byte-stable across runs (which is what
 # keeps the role idempotent). `{shell}` is replaced with the shell name.
 #
 # `shells` lists only the shells the generator genuinely supports - checked per
-# tool rather than assumed, because two of them do not support all three:
-#   cargo     `rustup completions fish cargo` exits 1 with "cargo does not
-#             currently support completions for fish"
-#   opencode  ignores its shell argument entirely - bash, zsh and fish all
-#             return a byte-identical yargs script that drives COMP_WORDS /
-#             COMP_CWORD, i.e. bash only
+# tool rather than assumed, because three of them do not support all three:
+#   cargo         `rustup completions fish cargo` exits 1 with "cargo does not
+#                 currently support completions for fish"
+#   opencode      ignores its shell argument entirely - bash, zsh and fish all
+#                 return a byte-identical yargs script that drives COMP_WORDS /
+#                 COMP_CWORD, i.e. bash only
+#   llama-server  the generator is a flag, not a subcommand, and the flag names
+#                 the shell: only --completion-bash exists. --completion-zsh and
+#                 --completion-fish both exit 1 as unrecognised arguments
 #
 # `requires` lists every binary that must be on PATH before the script is worth
 # installing - the generator itself, plus any helper the generated script shells
@@ -66,13 +75,20 @@ shell_completions_path: >-
 # rc=1, zero completions. `mise use --global usage` turns it on.
 #
 # Deliberately absent, because they have no completion generator at all:
-#   rtk, codegraph, claude  - no `completion` subcommand in --help
-#   ansible                 - pipx console scripts drop the PYTHON_ARGCOMPLETE_OK
-#                             marker, so register-python-argcomplete emits a
-#                             script that never fires
-#   glab                    - supports `glab completion -s <shell>` but is not
-#                             installed; it stays listed here so installing it
-#                             and re-running the tag is all that is needed
+#   rtk, claude       - no `completion` subcommand in --help
+#   codegraph         - re-probed against the installed binary: `completion`,
+#                       `--completion(s)` and `(--)generate-shell-completion` all
+#                       exit 1 ("unknown command"/"unknown option"), and --help
+#                       has no match for "complet" or "shell". Still nothing to
+#                       generate; re-check when it gains a subcommand.
+#   lemonade, lemond  - CLI11 apps (the lemond role's apt package). CLI11 ships
+#                       no completion generator; all five probe forms exit 109
+#                       and --help-all mentions neither "complet" nor "shell"
+#   open-webui        - the openwebui role runs a docker container, there is no
+#                       CLI on the host to generate from
+#   glab              - supports `glab completion -s <shell>` but is not
+#                       installed; it stays listed here so installing it and
+#                       re-running the tag is all that is needed
 shell_completions_tools:
   # --include-bash-completion-lib pulls in the _comp_initialize / _comp_compgen
   # helpers the script needs; without it the completion errors even when `usage`
@@ -168,11 +184,109 @@ shell_completions_tools:
     shells: [bash, zsh, fish]
     argv: [kitty, +, complete, setup, "{shell}"]
     aliases: [kitten, edit-in-kitty, clone-in-kitty]
-  - name: ansible-playbook
-    requires: [ansible-playbook]
-    shells: [bash]
-    argv: [eval, '"$(register-python-argcomplete ansible-playbook")']
+  # ansible has no completion generator of its own: its CLIs call
+  # argcomplete.autocomplete(), and argcomplete's `register-python-argcomplete` is
+  # what emits the script. Two things have to hold, and neither is visible from a
+  # failing Tab press - the script installs cleanly either way.
+  #
+  #   1. The generator has to *print* the script. `eval "$(register-python-argcomplete
+  #      ansible)"` cannot work here: argv is exec'd directly with no shell, so
+  #      there is no command substitution and no `eval` (a builtin, not a binary).
+  #      `--shell {shell} <exe>...` is the printing form.
+  #   2. argcomplete has to be importable *inside the pipx venv ansible runs from*,
+  #      not merely on PATH. ansible/cli/__init__.py wraps `import argcomplete` in
+  #      a try/except and skips autocomplete() when it fails, so a missing venv copy
+  #      means every Tab silently returns nothing. The packages role installs it
+  #      there; the python3-argcomplete system package only supplies the generator.
+  #
+  # The missing PYTHON_ARGCOMPLETE_OK marker in pipx's console scripts - the reason
+  # this file used to list ansible as ungeneratable - is a red herring: that marker
+  # is only read by argcomplete's *global* completion hook, which greps entry points
+  # for it. A script registered per-command with `complete -F` never looks for it.
+  # Verified end to end once argcomplete was in the venv: `ansible-galaxy col<Tab>`
+  # completes to `collection`.
+  #
+  # One script serves the whole suite - it names every executable it was given, in
+  # both the `complete -F` line and the zsh `#compdef` header - so the other CLIs
+  # are aliases rather than entries of their own, the kitty pattern above.
+  # ansible-community is excluded: it is the one ansible-* entry point that is not
+  # an argparse CLI and returns nothing under the protocol.
   - name: ansible
-    requires: [ansible]
+    requires: [ansible, register-python-argcomplete]
+    shells: [bash, zsh, fish]
+    argv:
+      [
+        register-python-argcomplete,
+        --shell,
+        "{shell}",
+        ansible,
+        ansible-config,
+        ansible-console,
+        ansible-doc,
+        ansible-galaxy,
+        ansible-inventory,
+        ansible-playbook,
+        ansible-pull,
+        ansible-test,
+        ansible-vault,
+      ]
+    aliases:
+      - ansible-config
+      - ansible-console
+      - ansible-doc
+      - ansible-galaxy
+      - ansible-inventory
+      - ansible-playbook
+      - ansible-pull
+      - ansible-test
+      - ansible-vault
+  # The rest come from the opt-in ai-inference.yml, which runs this role last for
+  # the same reason nvim.yml does. Both playbooks share this one registry, and
+  # every entry is gated on `requires`, so a tool only either playbook installs is
+  # skipped (not deleted) by the other - which is what keeps the two runs from
+  # fighting over the same files.
+  #
+  # docker comes from geerlingguy.docker, pulled in by ai-inference.yml's
+  # pre_tasks. `docker completion <shell>` is cobra and supports all three; the
+  # bash script carries its own __docker_init_completion fallback, so it works on
+  # bash-completion 2.11 as well as 2.12. It is byte-identical to the copy the
+  # docker-ce-cli package drops in /usr/share/bash-completion/completions, and the
+  # user XDG dir simply wins the lookup - so this tracks the installed engine.
+  - name: docker
+    requires: [docker]
+    shells: [bash, zsh, fish]
+    argv: [docker, completion, "{shell}"]
+  # llama.cpp has no `completion` subcommand; every binary built from common.cpp
+  # takes a --completion-bash flag instead, and there is no zsh or fish
+  # equivalent (see the `shells` note above). One script serves the whole suite:
+  # it defines a single _llama_completions function and registers it for 45
+  # llama-* command names, so the other binaries are `aliases` rather than their
+  # own entries. Listed here are the ones this box's tarball actually ships that
+  # the script also names - a link for a command that does not exist would be
+  # harmless but pointless. The catch upstream leaves us with: the option list
+  # baked into the script is whichever binary generated it, and the binaries do
+  # not agree (llama-cli has -p/--prompt and -f, llama-server does not; the
+  # server's list is otherwise the larger). llama-server is the generator because
+  # it is the binary this playbook exists to run - Tab on llama-cli then offers
+  # the server's flags, which is upstream's design, not a bug here.
+  - name: llama-server
+    requires: [llama-server]
     shells: [bash]
-    argv: [eval, '"$(register-python-argcomplete ansible")']
+    argv: [llama-server, --completion-bash]
+    aliases:
+      - llama-batched-bench
+      - llama-bench
+      - llama-cli
+      - llama-completion
+      - llama-fit-params
+      - llama-gemma3-cli
+      - llama-gguf-split
+      - llama-imatrix
+      - llama-llava-cli
+      - llama-minicpmv-cli
+      - llama-mtmd-cli
+      - llama-perplexity
+      - llama-quantize
+      - llama-qwen2vl-cli
+      - llama-tokenize
+      - llama-tts

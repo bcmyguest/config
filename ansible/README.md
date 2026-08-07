@@ -186,20 +186,32 @@ directory. Anything else left in there is respected and the loop stays.
 
 One wrinkle only autoloading has: the loader looks for a file named after the
 command being typed, so a script that completes *several* commands needs the extra
-names as symlinks beside it. `kitty` is the case here — its script also completes
+names as symlinks beside it. `kitty` is one case — its script also completes
 `kitten`, `edit-in-kitty` and `clone-in-kitty`, which the role links (`aliases` in
-the vars file). A sourced script registers all four by itself and needs no links.
+the vars file). `ansible` and `llama-server` are the others: one generated script
+covers each tool's whole family of commands. A sourced script registers every name
+by itself and needs no links.
 
 Covered: `mise`, `fnox`, `uv`, `uvx`, `rustup`, `cargo`, `gh`, `grepai`,
-`opencode`, `zed`, `kitty`. Each tool declares which shells its generator genuinely supports,
-because two of them do not support all three — `rustup completions fish cargo`
-exits 1 (`cargo does not currently support completions for fish`), and `opencode`
+`opencode`, `zed`, `kitty`, `ansible`, plus `docker` and `llama-server` from
+`ai-inference.yml`. Each tool declares which shells its generator genuinely supports,
+because three of them do not support all three — `rustup completions fish cargo`
+exits 1 (`cargo does not currently support completions for fish`), `opencode`
 ignores its shell argument entirely, returning a byte-identical bash script for
-all three. Each is also gated on its required binaries being on PATH, so the role
+all three, and `llama-server` offers only a `--completion-bash` flag. Each is also gated on its required binaries being on PATH, so the role
 skips (and cleans up after) anything not installed; a missing tool never fails
 the play. `glab` is listed but skipped here because it isn't installed. The vars
-file records why `rtk`, `codegraph`, `claude` and `ansible` are absent (no
-working generator).
+file records why `rtk`, `codegraph`, `claude`, `lemonade`/`lemond` and
+`open-webui` are absent (no working generator).
+
+`ansible` is the one tool whose completions come from outside the tool: its CLIs
+call `argcomplete.autocomplete()`, and argcomplete's `register-python-argcomplete`
+emits the script. That needs argcomplete importable *inside the pipx venv ansible
+runs from*, not just on PATH — `ansible/cli/__init__.py` wraps the import in a
+try/except and skips autocomplete() when it fails, so without it the script
+installs cleanly and every Tab returns nothing. The `packages` role installs it
+there (`ansible.builtin.pip`), alongside the distro `python3-argcomplete` package
+that supplies the generator binary.
 
 `mise` needs two things beyond the generator, both handled:
 

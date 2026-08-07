@@ -26,6 +26,7 @@ packages:
   - jq # required by the starship-claude statusline script
   - fd-find
   - fontconfig # fc-cache for the nerdfonts role
+  - python3-argcomplete # supplies register-python-argcomplete, the generator the shell-completions role runs for ansible
 
 # Third-party vendor repos. ansible.builtin.deb822_repository fetches the key at
 # `signed_by`, dearmors it into /etc/apt/keyrings/<name>.gpg, and writes the

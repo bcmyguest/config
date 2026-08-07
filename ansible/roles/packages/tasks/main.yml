@@ -16,6 +16,17 @@
 - name: load OS-family package vars
   ansible.builtin.include_vars: "{{ ansible_os_family }}.yml"
 
+# `ansible <Tab>` needs argcomplete importable by the interpreter ansible itself
+# runs under (the pipx venv), not just on PATH: ansible/cli/__init__.py wraps
+# `import argcomplete` in a try/except and silently skips autocomplete() when it
+# fails, so completions install fine and then return nothing. The distro
+# python3-argcomplete package cannot reach into the venv — it only supplies the
+# register-python-argcomplete generator the shell-completions role invokes.
+- name: ensure argcomplete is available to ansible (shell completion dependency)
+  ansible.builtin.pip:
+    name: argcomplete
+    state: present
+
 - ansible.builtin.import_tasks: debian.yml
   when: ansible_os_family == 'Debian'
 
