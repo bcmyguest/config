@@ -107,7 +107,17 @@ shell_completions_tools:
   - name: fnox
     requires: [fnox, usage]
     shells: [bash]
-    argv: [usage, generate, completion, bash, fnox, --usage-cmd, "fnox usage", --include-bash-completion-lib]
+    argv:
+      [
+        usage,
+        generate,
+        completion,
+        bash,
+        fnox,
+        --usage-cmd,
+        "fnox usage",
+        --include-bash-completion-lib,
+      ]
   - name: fnox
     requires: [fnox, usage]
     shells: [zsh, fish]
@@ -158,3 +168,11 @@ shell_completions_tools:
     shells: [bash, zsh, fish]
     argv: [kitty, +, complete, setup, "{shell}"]
     aliases: [kitten, edit-in-kitty, clone-in-kitty]
+  - name: ansible-playbook
+    requires: [ansible-playbook]
+    shells: [bash]
+    argv: [eval, '"$(register-python-argcomplete ansible-playbook")']
+  - name: ansible
+    requires: [ansible]
+    shells: [bash]
+    argv: [eval, '"$(register-python-argcomplete ansible")']

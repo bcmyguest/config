@@ -28,3 +28,4 @@ packages:
   - jq
   - fd-find
   - fontconfig # fc-cache for the nerdfonts role
+  - python3-argcomplete

@@ -50,6 +50,8 @@
       tags: [rtk]
     - role: cargo
       tags: [cargo]
+    - role: gh
+      tags: [gh]
     - role: nerdfonts
       tags: [nerdfonts]
     - role: opencode

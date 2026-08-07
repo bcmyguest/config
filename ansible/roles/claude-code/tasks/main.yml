@@ -12,25 +12,25 @@
     src: "{{ ansible_env.HOME }}/.config/mise/config.toml"
   register: mise_config
   failed_when: false
-
-- name: install Claude Code globally via mise (npm backend, install scripts enabled)
-  ansible.builtin.command:
-    argv:
-      - mise
-      - use
-      - --global
-      - "npm:@anthropic-ai/claude-code@latest[npm_args=--ignore-scripts=false]"
-  when: >
-    mise_config.content is not defined or
-    '@anthropic-ai/claude-code' not in (mise_config.content | b64decode)
-  changed_when: true
-
-- name: report the installed Claude Code version
-  ansible.builtin.command: mise exec -- claude --version
-  register: claude_code_version
-  changed_when: false
-  failed_when: false
-
-- name: Claude Code version
-  ansible.builtin.debug:
-    var: claude_code_version.stdout
+#
+# - name: install Claude Code globally via mise (npm backend, install scripts enabled)
+#   ansible.builtin.command:
+#     argv:
+#       - mise
+#       - use
+#       - --global
+#       - "npm:@anthropic-ai/claude-code@latest[npm_args=--ignore-scripts=false]"
+#   when: >
+#     mise_config.content is not defined or
+#     '@anthropic-ai/claude-code' not in (mise_config.content | b64decode)
+#   changed_when: true
+#
+# - name: report the installed Claude Code version
+#   ansible.builtin.command: mise exec -- claude --version
+#   register: claude_code_version
+#   changed_when: false
+#   failed_when: false
+#
+# - name: Claude Code version
+#   ansible.builtin.debug:
+#     var: claude_code_version.stdout
