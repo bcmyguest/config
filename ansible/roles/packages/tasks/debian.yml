@@ -17,6 +17,10 @@
   register: dpkg_arch
   changed_when: false
 
+# deb822_repository re-fetches every signed_by URL on each run to compare keys, so a
+# single flaky response from a vendor CDN (packages.microsoft.com resets connections
+# under load: "Remote end closed connection without response") fails the whole play even
+# when the keyring on disk is already correct. Retry per item before giving up.
 - name: manage vendor deb822 repositories
   ansible.builtin.deb822_repository:
     name: "{{ item.name }}"
@@ -31,6 +35,10 @@
   loop: "{{ apt_repos }}"
   loop_control:
     label: "{{ item.name }}"
+  register: deb822_repos
+  until: deb822_repos is not failed
+  retries: 3
+  delay: 5
 
 # Remove deb822 .sources no longer managed here: chromium-beta has no noble build,
 # and graphics-drivers is now a PPA (next task), which writes its own list + key.
