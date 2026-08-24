@@ -1,0 +1,9 @@
+---
+# milacoder — Mila's agentic coding CLI (@mila-studios/mila-coder). Private
+# GitHub releases (gh auth required); npm-installed under ~/.local so the
+# binaries land in ~/.local/bin alongside the rest of this playbook's tools.
+milacoder_gh_repo: mila-studios/mila-coder
+milacoder_npm_prefix: "{{ ansible_env.HOME }}/.local"
+milacoder_bin: "{{ ansible_env.HOME }}/.local/bin/milacoder"
+# Matches 0.1.0 and 0.1.0-beta.9 (all published tags so far are prereleases).
+milacoder_version_re: '([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.]+)?)'

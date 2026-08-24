@@ -258,7 +258,12 @@ whole stack, or one piece by tag:
 ```
 ansible-playbook ai-inference.yml --ask-become-pass               # docker + llama-cpp + lemond + openwebui
 ansible-playbook ai-inference.yml --tags lemond --ask-become-pass # just lemond
+ansible-playbook ai-inference.yml --tags milacoder                # Mila coding CLI (no sudo)
 ```
+
+`milacoder` is opt-in: private GitHub releases via `gh`, soft-skips when this
+machine has no access to `mila-studios/mila-coder`. Needs `gh` + Node/npm from
+`nvim.yml` (`--tags gh,mise`). After install run `milacoder setup` by hand.
 
 ollama is not installed by ansible; drop `../ollama.service.d/override.conf` into
 the ollama unit by hand if you run it.

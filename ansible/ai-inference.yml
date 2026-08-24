@@ -17,6 +17,9 @@
 #   - codegraph   local code knowledge graph MCP server for coding agents
 #   - grepai      local semantic code search for coding agents; needs ollama
 #                 (pulls the nomic-embed-text embedding model)
+#   - milacoder   Mila coding CLI (private GitHub release via gh + npm);
+#                 soft-skips when gh has no access to mila-studios/mila-coder.
+#                 Needs node/npm/gh from nvim.yml (mise + gh roles).
 #   - shell-completions
 #                 regenerates shell completions for whatever of the above is
 #                 installed; shared with nvim.yml, runs last
@@ -61,6 +64,8 @@
       tags: [codegraph]
     - role: grepai
       tags: [grepai]
+    - role: milacoder
+      tags: [milacoder]
     # Last, same as in nvim.yml: it regenerates shell completions from the
     # binaries the roles above just installed/upgraded. Without it here, the
     # tools this playbook installs would only pick up completions later and by

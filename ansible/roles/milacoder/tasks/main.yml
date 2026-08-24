@@ -1,0 +1,189 @@
+---
+# milacoder — Mila's coding CLI (mila-studios/mila-coder). Opt-in only: lives
+# in ai-inference.yml, not nvim.yml. Releases are private and currently all
+# prereleases, so install follows upstream's documented path (gh release
+# download + npm i -g) rather than community.general.github_release.
+#
+# Soft-skips when gh cannot see the repo (no org access on this machine).
+# Needs Node >= 22.19 (mise role pins node@24) and gh on PATH.
+#
+# Pin with: -e pinned_version=v0.1.0-beta.9
+# Setup after install is manual: `milacoder setup`
+
+- name: milacoder requires gh
+  ansible.builtin.command:
+    argv: [gh, --version]
+  register: milacoder_gh_check
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: fail when gh is missing
+  ansible.builtin.fail:
+    msg: >-
+      milacoder installs from a private GitHub release and needs the `gh`
+      CLI on PATH (run nvim.yml --tags gh first).
+  when: milacoder_gh_check.rc != 0
+
+- name: milacoder requires node
+  ansible.builtin.command:
+    argv: [node, --version]
+  register: milacoder_node_check
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: fail when node is missing
+  ansible.builtin.fail:
+    msg: >-
+      milacoder needs Node.js >= 22.19 on PATH (mise role pins node@24;
+      run nvim.yml --tags mise first).
+  when: milacoder_node_check.rc != 0
+
+- name: milacoder requires npm
+  ansible.builtin.command:
+    argv: [npm, --version]
+  register: milacoder_npm_check
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: fail when npm is missing
+  ansible.builtin.fail:
+    msg: >-
+      milacoder needs npm on PATH (comes with the mise-managed node install).
+  when: milacoder_npm_check.rc != 0
+
+- name: probe milacoder repo access
+  ansible.builtin.command:
+    argv: [gh, api, "repos/{{ milacoder_gh_repo }}", --jq, .id]
+  register: milacoder_repo_probe
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: skip milacoder when repo is inaccessible
+  ansible.builtin.debug:
+    msg: >-
+      Skipping milacoder: no access to {{ milacoder_gh_repo }} via gh
+      ({{ milacoder_repo_probe.stderr | default(milacoder_repo_probe.stdout) | trim }}).
+      Opt-in role — expected on machines without Mila org membership.
+  when: milacoder_repo_probe.rc != 0
+
+- name: install milacoder
+  when: milacoder_repo_probe.rc == 0
+  block:
+    - name: resolve latest milacoder release tag
+      ansible.builtin.command:
+        argv:
+          - gh
+          - release
+          - list
+          - -R
+          - "{{ milacoder_gh_repo }}"
+          - --limit
+          - "1"
+          - --json
+          - tagName
+          - --jq
+          - .[0].tagName
+      register: milacoder_latest
+      changed_when: false
+      check_mode: false
+      when: pinned_version is not defined
+
+    - name: choose version to install
+      ansible.builtin.set_fact:
+        version_to_install: "{{ pinned_version | default(milacoder_latest.stdout | default('') | trim) }}"
+      check_mode: false
+
+    - name: build target version and asset name
+      ansible.builtin.set_fact:
+        target_version: "{{ version_to_install | regex_replace('^v', '') }}"
+        milacoder_asset: "mila-studios-mila-coder-{{ version_to_install | regex_replace('^v', '') }}.tgz"
+      check_mode: false
+
+    - name: get current milacoder version
+      ansible.builtin.command:
+        argv: ["{{ milacoder_bin }}", --version]
+      register: current_version_raw
+      failed_when: false
+      changed_when: false
+      check_mode: false
+
+    - name: extract installed version
+      ansible.builtin.set_fact:
+        current_version: >-
+          {{ current_version_raw.stdout | default('')
+             | regex_search(milacoder_version_re, '\1')
+             | default([''], true)
+             | first }}
+      check_mode: false
+
+    - name: show milacoder versions
+      ansible.builtin.debug:
+        msg: "installed={{ current_version | default('none') }} target={{ target_version }}"
+
+    - name: install milacoder from GitHub release
+      when:
+        - not ansible_check_mode
+        - version_to_install | default('') | length > 0
+        - target_version != current_version
+      block:
+        - name: create tempfile dir for milacoder tarball
+          ansible.builtin.tempfile:
+            state: directory
+            suffix: milacoder
+          register: milacoder_tmpdir
+
+        - name: download milacoder release tarball
+          ansible.builtin.command:
+            argv:
+              - gh
+              - release
+              - download
+              - "{{ version_to_install }}"
+              - -R
+              - "{{ milacoder_gh_repo }}"
+              - -p
+              - "{{ milacoder_asset }}"
+              - -D
+              - "{{ milacoder_tmpdir.path }}"
+          register: milacoder_download
+
+        - name: ensure ~/.local/bin exists
+          ansible.builtin.file:
+            path: "{{ ansible_env.HOME }}/.local/bin"
+            state: directory
+            mode: "0755"
+
+        # --prefix ~/.local puts milacoder/mila-coder in ~/.local/bin.
+        # --foreground-scripts runs postinstall (pi branding); npm 11's
+        # allowScripts otherwise skips it with a warning.
+        - name: npm install milacoder globally under ~/.local
+          ansible.builtin.command:
+            argv:
+              - npm
+              - i
+              - -g
+              - --prefix
+              - "{{ milacoder_npm_prefix }}"
+              - --foreground-scripts
+              - "{{ milacoder_tmpdir.path }}/{{ milacoder_asset }}"
+
+        - name: remove milacoder download tempfile
+          ansible.builtin.file:
+            path: "{{ milacoder_tmpdir.path }}"
+            state: absent
+
+    - name: report installed milacoder version
+      ansible.builtin.command:
+        argv: ["{{ milacoder_bin }}", --version]
+      register: milacoder_version_report
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: milacoder version
+      ansible.builtin.debug:
+        var: milacoder_version_report.stdout
