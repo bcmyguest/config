@@ -81,3 +81,13 @@
     - not ansible_check_mode
     - target_version != current_version
     - version_to_install | default('') | length > 0
+
+# Auto-load secrets from a project's fnox.toml on cd — same shape as the mise
+# role's `eval "$(mise activate bash)"` hook. Without this, the binary alone
+# only helps via `fnox exec` / `fnox get`; with it, secrets export into the
+# interactive shell the same way mise injects tool shims.
+- name: activate fnox in shell configuration (bash)
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    line: 'eval "$(fnox activate bash)"'
+    create: true
