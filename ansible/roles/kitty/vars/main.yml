@@ -2,12 +2,12 @@
 # The release txz is a self-contained bundle (bin/, lib/, share/ at top level),
 # so it gets its own tree under ~/.local and the two binaries are symlinked
 # into ~/.local/bin, which is already on PATH (XDG default) — no PATH edit.
-kitty_install_dir: "{{ ansible_env.HOME }}/.local/kitty"
+kitty_install_dir: "{{ ansible_facts['env']['HOME'] }}/.local/kitty"
 kitty_bin: "{{ kitty_install_dir }}/bin/kitty"
-kitty_config_dir: "{{ ansible_env.HOME }}/.config/kitty"
-kitty_applications_dir: "{{ ansible_env.HOME }}/.local/share/applications"
+kitty_config_dir: "{{ ansible_facts['env']['HOME'] }}/.config/kitty"
+kitty_applications_dir: "{{ ansible_facts['env']['HOME'] }}/.local/share/applications"
 
-# Upstream names Linux assets x86_64/arm64; ansible_architecture says aarch64,
+# Upstream names Linux assets x86_64/arm64; ansible_facts['architecture'] says aarch64,
 # so map explicitly and fail loudly on anything else.
 kitty_arch_map:
   x86_64: x86_64

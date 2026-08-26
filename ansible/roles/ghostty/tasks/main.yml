@@ -7,9 +7,9 @@
 # add it to roles/packages if `ghostty` fails to launch with a FUSE error.
 - name: ghostty AppImage arch is supported
   ansible.builtin.assert:
-    that: ansible_architecture in ghostty_arch_map
+    that: ansible_facts['architecture'] in ghostty_arch_map
     fail_msg: >-
-      No Ghostty AppImage for {{ ansible_architecture }}; pkgforge-dev publishes
+      No Ghostty AppImage for {{ ansible_facts['architecture'] }}; pkgforge-dev publishes
       x86_64 and aarch64 only.
 
 - name: get latest release of ghostty-appimage (cached)
@@ -37,7 +37,7 @@
 # Asset filenames drop the leading "v" (tag v1.3.1 -> Ghostty-1.3.1-x86_64.AppImage).
 - name: build asset name and target version
   ansible.builtin.set_fact:
-    ghostty_asset: "Ghostty-{{ version_to_install | regex_replace('^v', '') }}-{{ ghostty_arch_map[ansible_architecture] }}.AppImage"
+    ghostty_asset: "Ghostty-{{ version_to_install | regex_replace('^v', '') }}-{{ ghostty_arch_map[ansible_facts['architecture']] }}.AppImage"
     target_version: "{{ version_to_install | regex_replace('^v', '') }}"
   check_mode: false
 
@@ -70,7 +70,7 @@
   block:
     - name: ensure ~/.local/bin exists
       ansible.builtin.file:
-        path: "{{ ansible_env.HOME }}/.local/bin"
+        path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
         state: directory
         mode: "0755"
 
@@ -149,7 +149,7 @@
 
 - name: refresh icon cache
   ansible.builtin.command:
-    cmd: gtk-update-icon-cache -f -t {{ ansible_env.HOME }}/.local/share/icons/hicolor
+    cmd: gtk-update-icon-cache -f -t {{ ansible_facts['env']['HOME'] }}/.local/share/icons/hicolor
   changed_when: false
   failed_when: false
   when: ghostty_icon is changed

@@ -4,10 +4,10 @@
 # files would clutter it), so the role adds the dir to PATH itself.
 - name: llama.cpp prebuilt tarball is x86_64-only
   ansible.builtin.assert:
-    that: ansible_architecture == 'x86_64'
+    that: ansible_facts['architecture'] == 'x86_64'
     fail_msg: >-
       Upstream only publishes the ubuntu-vulkan tarball for x64; this box is
-      {{ ansible_architecture }}. Build llama.cpp from source or skip the
+      {{ ansible_facts['architecture'] }}. Build llama.cpp from source or skip the
       llama-cpp tag.
 
 - name: get latest release of llama.cpp (cached)
@@ -84,12 +84,12 @@
         src: "{{ tmpdir.path }}/llama-{{ version_to_install }}/"
         dest: "{{ llama_cpp_dir }}/bin/"
         mode: preserve
-        owner: "{{ ansible_user_id }}"
+        owner: "{{ ansible_facts['user_id'] }}"
 
 # Done outside the install block so PATH is ensured even when already up to date.
 # (The old `export PATH=...` shell task ran in a throwaway subshell and did nothing.)
 - name: add llama.cpp to PATH (bash)
   ansible.builtin.lineinfile:
-    path: "{{ ansible_env.HOME }}/.bashrc"
+    path: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
     line: 'export PATH="$PATH:{{ llama_cpp_dir }}/bin"'
     create: true

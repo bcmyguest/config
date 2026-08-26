@@ -55,4 +55,4 @@
 
 - name: show open-webui status
   debug:
-    msg: "open-webui up at http://{{ ansible_default_ipv4.address | default('localhost') }}:8080"
+    msg: "open-webui up at http://{{ ansible_facts['default_ipv4'].address | default('localhost') }}:8080"

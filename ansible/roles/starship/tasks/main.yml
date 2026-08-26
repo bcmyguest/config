@@ -15,6 +15,6 @@
 
 - name: enable starship in shell configuration (bash)
   ansible.builtin.lineinfile:
-    path: "{{ ansible_env.HOME }}/.bashrc"
+    path: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
     line: 'eval "$(starship init bash)"'
     create: true

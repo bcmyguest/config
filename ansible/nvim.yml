@@ -7,15 +7,15 @@
     - name: verify this platform is supported
       ansible.builtin.assert:
         that:
-          - ansible_system == 'Linux'
-          - ansible_os_family in ['Debian', 'RedHat', 'Archlinux']
+          - ansible_facts['system'] == 'Linux'
+          - ansible_facts['os_family'] in ['Debian', 'RedHat', 'Archlinux']
         fail_msg: >-
-          Unsupported platform: {{ ansible_distribution }}
-          ({{ ansible_os_family }}/{{ ansible_system }}). This playbook supports
+          Unsupported platform: {{ ansible_facts['distribution'] }}
+          ({{ ansible_facts['os_family'] }}/{{ ansible_facts['system'] }}). This playbook supports
           Debian/Ubuntu, Fedora/RHEL and Arch family distros on Linux.
         success_msg: >-
-          {{ ansible_distribution }} {{ ansible_distribution_version | default('') }}
-          ({{ ansible_os_family }} family) is supported
+          {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] | default('') }}
+          ({{ ansible_facts['os_family'] }} family) is supported
       tags: [always]
 
     # Install the galaxy deps in requirements.yml so a fresh clone works with a bare

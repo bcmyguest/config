@@ -7,11 +7,11 @@
 # deb822 source (key in files/lemonade-team.asc) and purge any legacy file.
 - name: lemonade-server is only packaged for Ubuntu
   ansible.builtin.assert:
-    that: ansible_distribution == 'Ubuntu'
+    that: ansible_facts['distribution'] == 'Ubuntu'
     fail_msg: >-
       The lemond role installs lemonade-server from the lemonade-team Launchpad
       PPA, which only builds for Ubuntu releases; this box is
-      {{ ansible_distribution }}. Install lemonade-server by hand or skip the
+      {{ ansible_facts['distribution'] }}. Install lemonade-server by hand or skip the
       lemond tag.
 
 - name: find legacy lemonade PPA source files
@@ -34,7 +34,7 @@
     name: lemonade-team-stable
     types: [deb]
     uris: https://ppa.launchpadcontent.net/lemonade-team/stable/ubuntu/
-    suites: "{{ ansible_distribution_release }}"
+    suites: "{{ ansible_facts['distribution_release'] }}"
     components: [main]
     signed_by: "{{ lookup('ansible.builtin.file', role_path + '/files/lemonade-team.asc') }}"
     state: present
@@ -58,7 +58,7 @@
 - name: ensure user systemd directory exists
   become: false
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.config/systemd/user"
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user"
     state: directory
     mode: "0755"
 
@@ -66,7 +66,7 @@
   become: false
   ansible.builtin.file:
     src: /dev/null
-    dest: "{{ ansible_env.HOME }}/.config/systemd/user/lemond.service"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/lemond.service"
     state: link
 
 # A failed bind doesn't make lemond exit, so without this the unit reports success

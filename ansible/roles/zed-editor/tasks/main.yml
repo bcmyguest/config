@@ -5,9 +5,9 @@
 
 - name: zed release arch is supported
   ansible.builtin.assert:
-    that: ansible_architecture in zed_arch_map
+    that: ansible_facts['architecture'] in zed_arch_map
     fail_msg: >-
-      No Zed Linux tarball for {{ ansible_architecture }}; upstream publishes
+      No Zed Linux tarball for {{ ansible_facts['architecture'] }}; upstream publishes
       x86_64 and aarch64 only.
 
 - name: get latest release of zed (cached)
@@ -34,7 +34,7 @@
 
 - name: build asset name and target version
   ansible.builtin.set_fact:
-    zed_asset: "zed-linux-{{ zed_arch_map[ansible_architecture] }}.tar.gz"
+    zed_asset: "zed-linux-{{ zed_arch_map[ansible_facts['architecture']] }}.tar.gz"
     target_version: "{{ version_to_install | regex_replace('^v', '') }}"
   check_mode: false
 
@@ -101,7 +101,7 @@
 
 - name: ensure ~/.local/bin exists
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.local/bin"
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
     state: directory
     mode: "0755"
 
@@ -110,7 +110,7 @@
 - name: symlink zed into ~/.local/bin
   ansible.builtin.file:
     src: "{{ zed_install_dir }}/zed.app/bin/zed"
-    dest: "{{ ansible_env.HOME }}/.local/bin/zed"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/zed"
     state: link
     force: true
 

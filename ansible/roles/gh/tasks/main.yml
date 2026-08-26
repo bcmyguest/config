@@ -8,9 +8,9 @@
 
 - name: gh release arch is supported
   ansible.builtin.assert:
-    that: ansible_architecture in gh_arch_map
+    that: ansible_facts['architecture'] in gh_arch_map
     fail_msg: >-
-      No gh Linux tarball for {{ ansible_architecture }}; this role maps
+      No gh Linux tarball for {{ ansible_facts['architecture'] }}; this role maps
       x86_64 and aarch64 only.
 
 - name: get latest release of gh (cached)
@@ -64,7 +64,7 @@
 
 - name: ensure ~/.local/bin exists
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.local/bin"
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
     state: directory
     mode: "0755"
 
@@ -88,7 +88,7 @@
 
     - name: download the gh tarball
       ansible.builtin.get_url:
-        url: "https://github.com/cli/cli/releases/download/{{ version_to_install }}/gh_{{ target_version }}_linux_{{ gh_arch_map[ansible_architecture] }}.tar.gz"
+        url: "https://github.com/cli/cli/releases/download/{{ version_to_install }}/gh_{{ target_version }}_linux_{{ gh_arch_map[ansible_facts['architecture']] }}.tar.gz"
         dest: "{{ gh_tmp.path }}/gh.tar.gz"
         timeout: 300
         mode: "0644"
@@ -98,10 +98,10 @@
     - name: install gh binary
       ansible.builtin.unarchive:
         src: "{{ gh_tmp.path }}/gh.tar.gz"
-        dest: "{{ ansible_env.HOME }}/.local/bin"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
         remote_src: true
         include:
-          - "gh_{{ target_version }}_linux_{{ gh_arch_map[ansible_architecture] }}/bin/gh"
+          - "gh_{{ target_version }}_linux_{{ gh_arch_map[ansible_facts['architecture']] }}/bin/gh"
         extra_opts:
           - --strip-components=2
         mode: "0755"

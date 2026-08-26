@@ -42,5 +42,3 @@
       tags: [cursor]
     - role: agent-cli
       tags: [agent-cli]
-    - role: zed-editor
-      tags: [zed-editor]

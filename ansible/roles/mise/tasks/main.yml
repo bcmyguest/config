@@ -72,7 +72,7 @@
 
     - name: extract release
       ansible.builtin.unarchive:
-        src: "https://github.com/jdx/mise/releases/download/{{ version_to_install }}/mise-{{ version_to_install }}-linux-{{ 'arm64' if ansible_architecture == 'aarch64' else 'x64' }}-musl.tar.gz"
+        src: "https://github.com/jdx/mise/releases/download/{{ version_to_install }}/mise-{{ version_to_install }}-linux-{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'x64' }}-musl.tar.gz"
         dest: "{{ tmpdir.path }}"
         remote_src: true
 
@@ -81,9 +81,9 @@
     - name: install mise binary
       ansible.builtin.copy:
         src: "{{ tmpdir.path }}/mise/bin/mise"
-        dest: "{{ ansible_env.HOME }}/.local/bin/mise"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/mise"
         mode: "0755"
-        owner: "{{ ansible_user_id }}"
+        owner: "{{ ansible_facts['user_id'] }}"
   when:
     - not ansible_check_mode
     - version_to_install | default('') | length > 0
@@ -93,7 +93,7 @@
 # bash shells (the equivalent of what `volta` did for node's PATH).
 - name: activate mise in shell configuration (bash)
   ansible.builtin.lineinfile:
-    path: "{{ ansible_env.HOME }}/.bashrc"
+    path: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
     line: 'eval "$(mise activate bash)"'
     create: true
 
@@ -104,7 +104,7 @@
 # the existing config text so re-provisioning is a no-op once a tool is pinned.
 - name: read global mise config
   ansible.builtin.slurp:
-    src: "{{ ansible_env.HOME }}/.config/mise/config.toml"
+    src: "{{ ansible_facts['env']['HOME'] }}/.config/mise/config.toml"
   register: mise_global_config
   failed_when: false
 
@@ -154,12 +154,12 @@
 # pins above so the mise replacements exist before volta's are taken away.
 - name: remove the volta install directory
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.volta"
+    path: "{{ ansible_facts['env']['HOME'] }}/.volta"
     state: absent
 
 - name: remove volta binaries from ~/.local/bin
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.local/bin/{{ item }}"
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin/{{ item }}"
     state: absent
   loop:
     - volta
@@ -172,5 +172,5 @@
     regexp: '^if \[ -d "\$HOME/\.volta/bin" \] ; then\n[ \t]*PATH="\$HOME/\.volta/bin:\$PATH"\nfi\n'
     replace: ''
   loop:
-    - "{{ ansible_env.HOME }}/.bashrc"
-    - "{{ ansible_env.HOME }}/.profile"
+    - "{{ ansible_facts['env']['HOME'] }}/.bashrc"
+    - "{{ ansible_facts['env']['HOME'] }}/.profile"

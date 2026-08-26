@@ -1,2 +1,2 @@
 ---
-llama_cpp_dir: "{{ ansible_env.HOME }}/.local/llama-cpp"
+llama_cpp_dir: "{{ ansible_facts['env']['HOME'] }}/.local/llama-cpp"

@@ -10,9 +10,9 @@
 
 - name: fnox release arch is supported
   ansible.builtin.assert:
-    that: ansible_architecture in fnox_supported_arch
+    that: ansible_facts['architecture'] in fnox_supported_arch
     fail_msg: >-
-      No fnox Linux tarball for {{ ansible_architecture }}; upstream
+      No fnox Linux tarball for {{ ansible_facts['architecture'] }}; upstream
       publishes x86_64 and aarch64 only.
 
 - name: get latest release of fnox (cached)
@@ -63,7 +63,7 @@
 
 - name: ensure ~/.local/bin exists
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.local/bin"
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
     state: directory
     mode: "0755"
 
@@ -71,8 +71,8 @@
 # on PATH with no tempdir/copy dance.
 - name: install fnox binary
   ansible.builtin.unarchive:
-    src: "https://github.com/jdx/fnox/releases/download/{{ version_to_install }}/fnox-{{ ansible_architecture }}-unknown-linux-musl.tar.gz"
-    dest: "{{ ansible_env.HOME }}/.local/bin"
+    src: "https://github.com/jdx/fnox/releases/download/{{ version_to_install }}/fnox-{{ ansible_facts['architecture'] }}-unknown-linux-musl.tar.gz"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
     remote_src: true
     include:
       - fnox
@@ -88,6 +88,6 @@
 # interactive shell the same way mise injects tool shims.
 - name: activate fnox in shell configuration (bash)
   ansible.builtin.lineinfile:
-    path: "{{ ansible_env.HOME }}/.bashrc"
+    path: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
     line: 'eval "$(fnox activate bash)"'
     create: true

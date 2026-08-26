@@ -2,13 +2,13 @@
 # grepai ships a flat tarball (single static binary + docs), installed
 # straight into ~/.local/bin. Asset names embed the bare version:
 # grepai_<x.y.z>_linux_<arch>.tar.gz
-grepai_bin: "{{ ansible_env.HOME }}/.local/bin/grepai"
-grepai_completion_dir: "{{ ansible_env.HOME }}/.local/share/bash-completion/completions"
+grepai_bin: "{{ ansible_facts['env']['HOME'] }}/.local/bin/grepai"
+grepai_completion_dir: "{{ ansible_facts['env']['HOME'] }}/.local/share/bash-completion/completions"
 
 # Embedding model grepai's default ollama provider uses.
 grepai_embed_model: nomic-embed-text
 
-# Upstream names Linux assets amd64/arm64; ansible_architecture says
+# Upstream names Linux assets amd64/arm64; ansible_facts['architecture'] says
 # x86_64/aarch64, so map explicitly and fail loudly on anything else.
 grepai_arch_map:
   x86_64: amd64

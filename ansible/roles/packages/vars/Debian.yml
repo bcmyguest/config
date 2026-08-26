@@ -17,7 +17,7 @@ packages:
   # libfuse2 was renamed libfuse2t64 in the 24.04 time_t (t64) transition; jammy and
   # earlier still ship libfuse2. Pick the name from the release so both work. Lives in
   # universe, which the apt role ensures is enabled.
-  - "{{ 'libfuse2t64' if ansible_distribution_version is version('24.04', '>=') else 'libfuse2' }}"
+  - "{{ 'libfuse2t64' if ansible_facts['distribution_version'] is version('24.04', '>=') else 'libfuse2' }}"
   - keychain
   - tree
   - git
@@ -43,8 +43,8 @@ apt_repos:
     signed_by: https://download.spotify.com/debian/pubkey_5384CE82BA52C83A.gpg
 
   - name: microsoft-prod
-    uris: "https://packages.microsoft.com/ubuntu/{{ ansible_distribution_version }}/prod"
-    suites: "{{ ansible_distribution_release }}"
+    uris: "https://packages.microsoft.com/ubuntu/{{ ansible_facts['distribution_version'] }}/prod"
+    suites: "{{ ansible_facts['distribution_release'] }}"
     components: main
     signed_by: https://packages.microsoft.com/keys/microsoft.asc
 

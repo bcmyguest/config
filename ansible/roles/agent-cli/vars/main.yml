@@ -1,0 +1,3 @@
+---
+agent_pip_package: cursor-agent
+agent_pip_version: ">=0.1.4"

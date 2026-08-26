@@ -75,8 +75,8 @@
 - block:
     - name: extract binary
       ansible.builtin.unarchive:
-        src: "https://github.com/tree-sitter/tree-sitter/releases/download/{{ version_to_install }}/tree-sitter-cli-linux-{{ 'arm64' if ansible_architecture == 'aarch64' else 'x64' }}.zip"
-        dest: "{{ ansible_env.HOME }}/.local/bin"
+        src: "https://github.com/tree-sitter/tree-sitter/releases/download/{{ version_to_install }}/tree-sitter-cli-linux-{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'x64' }}.zip"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
         mode: "0755"
         remote_src: true
   when:

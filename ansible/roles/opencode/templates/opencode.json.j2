@@ -1,0 +1,201 @@
+{
+	"$schema": "https://opencode.ai/config.json",
+	// Meridian OpenCode plugin — session tracking + primary/subagent model tiers.
+	// Required when OPENCODE_MODEL is anthropic/* via Meridian
+	// (https://github.com/rynfar/meridian/blob/main/docs/agents.md#opencode).
+	// Path is absolute and baked into the image (see Dockerfile.opencode); do not
+	// use `meridian setup` here — that writes a host path the container cannot see.
+	"plugin": [
+		"/home/agent/.config/opencode/plugin/meridian.ts"
+	],
+	"mcp": {
+		"codegraph": {
+			"type": "local",
+			"command": [
+				"codegraph",
+				"serve",
+				"--mcp"
+			],
+			"enabled": true,
+		},
+		// Backlog read API for ideation (and any stage that needs board state).
+		// Uses RUNNER_BOARD_URL from the container env — same base as heartbeats.
+		"board": {
+			"type": "local",
+			"command": [
+				"board-mcp"
+			],
+			"enabled": true,
+		},
+		// Pinned to match the @playwright/mcp + chromium baked into services/runner/Dockerfile.opencode.
+		// Bump both together — @latest here fetches a build whose expected browser is absent.
+		"playwright": {
+			"type": "local",
+			"command": [
+				"npx",
+				"-y",
+				"@playwright/mcp@0.0.79"
+			],
+			"enabled": true,
+			"timeout": 120000,
+		},
+	},
+	"disabled_providers": [
+		"opencode"
+	],
+	// Auto mode. The CLI path ran `opencode run --auto` (see runner.py `_argv`); the
+	// HTTP server path has no such flag, so the equivalent has to live here or every
+	// gated tool call suspends the run waiting for a human who is never attached —
+	// that holds POST /session/:id/message open until the 1h client timeout.
+	"tools": {
+		// The `question` tool exists only to ask a human. Nothing can answer it here.
+		"question": false,
+		// No outbound network research — agents work from the repo.
+		"webfetch": false,
+		"websearch": false,
+	},
+	"permission": {
+		"read": "allow",
+		"edit": "allow",
+		"glob": "allow",
+		"grep": "allow",
+		"list": "allow",
+		// Order matters: opencode evaluates every pattern and the *last* match wins, so
+		// the denies have to sit after the `*` allow or they never fire (verified against
+		// 1.18.13 — `{"pkill *": "deny", "*": "allow"}` logs `action.pattern=* allow`).
+		// Each `;`/`||` segment of a compound command is matched separately, so this
+		// catches `pkill -f "vite" || true; echo done` too.
+		//
+		// `pkill -f PATTERN` matches against /proc/*/cmdline, and opencode runs each tool
+		// call as `bash -l -c '... eval "<command>" ...'` — the command text is in that
+		// shell's own argv. So `pkill -f vite` always matches the shell hosting it and
+		// SIGTERMs its own parent before the command finishes. Observed live: three
+		// consecutive attempts, each stalling to the bash ceiling, an hour of the run
+		// gone, and no vite process had ever existed.
+		"bash": {
+			"*": "allow",
+			"pkill": "deny",
+			"pkill *": "deny",
+			"* pkill *": "deny",
+			"killall": "deny",
+			"killall *": "deny",
+			"* killall *": "deny",
+		},
+		"task": "allow",
+		"external_directory": "allow",
+		"todowrite": "allow",
+		"webfetch": "deny",
+		"websearch": "deny",
+		"lsp": "allow",
+		"skill": "allow",
+		"question": "deny",
+	},
+	"lsp": {
+		"pyrefly": {
+			"command": [
+				"uv",
+				"run",
+				"pyrefly",
+				"lsp"
+			],
+			"extensions": [
+				".py",
+				".pyi"
+			],
+		},
+		"pyright": {
+			"disabled": true,
+		},
+		"typescript-7": {
+			"command": [
+				"npx",
+				"-y",
+				"-p",
+				"typescript@7",
+				"tsc",
+				"--lsp",
+				"--stdio"
+			],
+			"extensions": [
+				".ts",
+				".tsx",
+				".js",
+				".jsx",
+				".mjs",
+				".cjs",
+				".mts",
+				".cts"
+			],
+		},
+		"typescript": {
+			"disabled": true,
+		},
+	},
+	"provider": {
+		"lemonade": {
+			"npm": "@ai-sdk/openai-compatible",
+			"name": "lemonade",
+			"options": {
+				"baseURL": "http://192.168.2.168:13305/api/v1",
+				"apiKey": "lemonade",
+				"timeout": 600000
+			},
+			"models": {
+				"Qwen3.6-35B-A3B-GGUF": {
+					"name": "Qwen3.6-35B-A3B-GGUF",
+					"modalities": {
+						"input": [
+							"text",
+							"image"
+						],
+						"output": [
+							"text"
+						],
+					},
+					"limit": {
+						"context": 102400,
+						// Qwen3.6 is a thinking model and reasoning tokens come out of this
+						// budget. At 4096 the step that reads `pnpm test` output spent the
+						// whole budget reasoning about the failures and emitted no text and
+						// no tool call — opencode then exits the loop and the harness reports
+						// "no model output" after ~95s. Keep this well above the longest
+						// reasoning block; ~43 tok/s means 16384 is ~6min worst case, inside
+						// OPENCODE_TIMEOUT_SECONDS (3600).
+						"output": 16384,
+					},
+				},
+			},
+		},
+	},
+	// Per-stage agents with tailored roles and tool access.
+	// plan: read-only + board MCP — proposes subtasks without clashing with in-flight work.
+	// ideation: read-only + board MCP — proposes the next vertical slice.
+	// build: full access — implements the work.
+	// code-reviewer: reads and edits — inspects diffs, verifies with Playwright,
+	//   and gives structured feedback (ok/error JSON) to the harness review gate.
+	"agent": {
+		"plan": {
+			"mode": "primary",
+			"permission": {
+				"edit": "deny",
+				"bash": "deny",
+			},
+		},
+		"ideation": {
+			"mode": "primary",
+			"permission": {
+				"edit": "deny",
+				"bash": "deny",
+			},
+		},
+		// build / code-reviewer inherit top-level permission (including the pkill
+		// denies). A bare agent `"bash": "allow"` overrides that pattern map and
+		// lets the agent SIGTERM its own shell with `pkill -f`.
+		"build": {
+			"mode": "primary",
+		},
+		"code-reviewer": {
+			"mode": "primary",
+		},
+	},
+}

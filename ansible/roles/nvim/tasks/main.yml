@@ -67,8 +67,8 @@
 
 - name: install appimage
   get_url:
-    url: "https://github.com/neovim/neovim/releases/download/{{ version_to_install }}/nvim-linux-{{ 'arm64' if ansible_architecture == 'aarch64' else 'x86_64' }}.appimage"
-    dest: "{{ ansible_env.HOME }}/.local/bin/nvim"
+    url: "https://github.com/neovim/neovim/releases/download/{{ version_to_install }}/nvim-linux-{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'x86_64' }}.appimage"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/nvim"
     mode: '0755'
     force: true
   when:

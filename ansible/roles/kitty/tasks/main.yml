@@ -6,9 +6,9 @@
 # files/kitty.conf.
 - name: kitty release arch is supported
   ansible.builtin.assert:
-    that: ansible_architecture in kitty_arch_map
+    that: ansible_facts['architecture'] in kitty_arch_map
     fail_msg: >-
-      No kitty Linux bundle for {{ ansible_architecture }}; upstream publishes
+      No kitty Linux bundle for {{ ansible_facts['architecture'] }}; upstream publishes
       x86_64 and arm64 only.
 
 - name: get latest release of kitty (cached)
@@ -36,7 +36,7 @@
 # Asset filenames drop the leading "v" (tag v0.47.4 -> kitty-0.47.4-x86_64.txz).
 - name: build asset name and target version
   ansible.builtin.set_fact:
-    kitty_asset: "kitty-{{ version_to_install | regex_replace('^v', '') }}-{{ kitty_arch_map[ansible_architecture] }}.txz"
+    kitty_asset: "kitty-{{ version_to_install | regex_replace('^v', '') }}-{{ kitty_arch_map[ansible_facts['architecture']] }}.txz"
     target_version: "{{ version_to_install | regex_replace('^v', '') }}"
   check_mode: false
 
@@ -105,7 +105,7 @@
 
 - name: ensure ~/.local/bin exists
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.local/bin"
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
     state: directory
     mode: "0755"
 
@@ -114,7 +114,7 @@
 - name: symlink kitty and kitten into ~/.local/bin
   ansible.builtin.file:
     src: "{{ kitty_install_dir }}/bin/{{ item }}"
-    dest: "{{ ansible_env.HOME }}/.local/bin/{{ item }}"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/{{ item }}"
     state: link
     force: true
   loop:

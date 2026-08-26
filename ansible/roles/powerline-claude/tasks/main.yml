@@ -9,14 +9,14 @@
 
 - name: ensure ~/.local/bin exists
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.local/bin"
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
     state: directory
     mode: "0755"
 
 - name: download the powerline-claude release binary
   ansible.builtin.get_url:
     url: "{{ powerline_claude_release_url }}"
-    dest: "{{ ansible_env.HOME }}/.local/bin/powerline-claude"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/powerline-claude"
     mode: "0755"
     force: true
   register: powerline_claude_download
@@ -25,12 +25,12 @@
 - name: build powerline-claude from source (release download unavailable)
   ansible.builtin.command:
     argv:
-      - "{{ ansible_env.HOME }}/.cargo/bin/cargo"
+      - "{{ ansible_facts['env']['HOME'] }}/.cargo/bin/cargo"
       - install
       - --git
       - "https://github.com/{{ powerline_claude_repo }}"
       - --root
-      - "{{ ansible_env.HOME }}/.local"
+      - "{{ ansible_facts['env']['HOME'] }}/.local"
       - --locked
   when: powerline_claude_download.failed or (powerline_claude_download.status_code | default(0)) not in [200, 304]
   register: powerline_claude_build
@@ -39,13 +39,13 @@
 - name: the installed binary answers --help
   ansible.builtin.command:
     argv:
-      - "{{ ansible_env.HOME }}/.local/bin/powerline-claude"
+      - "{{ ansible_facts['env']['HOME'] }}/.local/bin/powerline-claude"
       - --help
   changed_when: false
 
 - name: ensure ~/.claude exists
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.claude"
+    path: "{{ ansible_facts['env']['HOME'] }}/.claude"
     state: directory
     mode: "0755"
 
@@ -54,7 +54,7 @@
 # Claude Code has written there (model, hooks, other plugins, ...).
 - name: read existing Claude settings.json
   ansible.builtin.slurp:
-    src: "{{ ansible_env.HOME }}/.claude/settings.json"
+    src: "{{ ansible_facts['env']['HOME'] }}/.claude/settings.json"
   register: claude_settings_raw
   failed_when: false
 
@@ -69,7 +69,7 @@
         | combine(powerline_claude_settings_patch, recursive=True)
         | to_nice_json(indent=2)
       }}
-    dest: "{{ ansible_env.HOME }}/.claude/settings.json"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.claude/settings.json"
     mode: "0644"
 
 # --- legacy starship-claude cleanup -----------------------------------------
@@ -83,10 +83,10 @@
     path: "{{ item }}"
     state: absent
   loop:
-    - "{{ ansible_env.HOME }}/.local/bin/starship-claude"
-    - "{{ ansible_env.HOME }}/.claude/starship-claude"
-    - "{{ ansible_env.HOME }}/.claude/starship.toml"
-    - "{{ ansible_env.HOME }}/.claude/.starship.toml.gen"
+    - "{{ ansible_facts['env']['HOME'] }}/.local/bin/starship-claude"
+    - "{{ ansible_facts['env']['HOME'] }}/.claude/starship-claude"
+    - "{{ ansible_facts['env']['HOME'] }}/.claude/starship.toml"
+    - "{{ ansible_facts['env']['HOME'] }}/.claude/.starship.toml.gen"
 
 - name: check settings.json for the legacy plugin registration
   ansible.builtin.command:
@@ -96,7 +96,7 @@
       - >-
         (.extraKnownMarketplaces["starship-claude"] //
          .enabledPlugins["starship-claude@starship-claude"]) != null
-      - "{{ ansible_env.HOME }}/.claude/settings.json"
+      - "{{ ansible_facts['env']['HOME'] }}/.claude/settings.json"
   register: powerline_claude_legacy_keys
   changed_when: false
   failed_when: false
@@ -107,7 +107,7 @@
   ansible.builtin.shell: >-
     tmp="$(mktemp)" &&
     jq 'del(.extraKnownMarketplaces["starship-claude"], .enabledPlugins["starship-claude@starship-claude"])'
-    "{{ ansible_env.HOME }}/.claude/settings.json" > "$tmp" &&
-    mv "$tmp" "{{ ansible_env.HOME }}/.claude/settings.json"
+    "{{ ansible_facts['env']['HOME'] }}/.claude/settings.json" > "$tmp" &&
+    mv "$tmp" "{{ ansible_facts['env']['HOME'] }}/.claude/settings.json"
   when: powerline_claude_legacy_keys.rc == 0
   changed_when: true

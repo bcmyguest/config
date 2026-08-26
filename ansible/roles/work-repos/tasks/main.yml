@@ -112,13 +112,13 @@
 # leaving a dangling `cd` behind.
 - name: ensure ~/.bashrc.d exists
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.bashrc.d"
+    path: "{{ ansible_facts['env']['HOME'] }}/.bashrc.d"
     state: directory
     mode: "0755"
 
 - name: write git repo aliases to ~/.bashrc.d/git
   ansible.builtin.copy:
-    dest: "{{ ansible_env.HOME }}/.bashrc.d/git"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.bashrc.d/git"
     mode: "0644"
     content: |
       {% for r in work_repos_ready %}
@@ -128,13 +128,13 @@
 
 - name: remove ~/.bashrc.d/git when no repos are cloned
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.bashrc.d/git"
+    path: "{{ ansible_facts['env']['HOME'] }}/.bashrc.d/git"
     state: absent
   when: work_repos_ready | length == 0
 
 - name: source ~/.bashrc.d/git from ~/.bashrc
   ansible.builtin.blockinfile:
-    path: "{{ ansible_env.HOME }}/.bashrc"
+    path: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
     create: true
     marker: "# {mark} ANSIBLE MANAGED BLOCK: work repo aliases"
     block: |

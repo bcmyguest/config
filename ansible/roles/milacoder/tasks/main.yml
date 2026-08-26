@@ -153,7 +153,7 @@
 
         - name: ensure ~/.local/bin exists
           ansible.builtin.file:
-            path: "{{ ansible_env.HOME }}/.local/bin"
+            path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
             state: directory
             mode: "0755"
 

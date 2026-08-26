@@ -5,7 +5,7 @@
 
 - name: refuse unsupported OS families
   ansible.builtin.assert:
-    that: ansible_os_family in vscode_supported_families
+    that: ansible_facts['os_family'] in vscode_supported_families
     fail_msg: >-
       VS Code role only supports {{ vscode_supported_families | join(', ') }}.
 
@@ -50,14 +50,14 @@
 
 - name: ensure ~/.local/bin is on PATH (code CLI)
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.local/bin"
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
     state: directory
     mode: "0755"
 
 - name: ensure code binary is on PATH
   ansible.builtin.file:
     src: /usr/share/code/bin/code
-    dest: "{{ ansible_env.HOME }}/.local/bin/code"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/code"
     state: link
     force: true
 
@@ -69,7 +69,7 @@
       - "{{ item }}"
       - --force
   environment:
-    PATH: "{{ ansible_env.HOME }}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
   register: ext_result
   changed_when: "'was successfully installed' in ext_result.stderr"
   loop: "{{ vscode_extensions }}"

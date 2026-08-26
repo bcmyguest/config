@@ -1,5 +1,5 @@
 # Where cached release tags live and how long (seconds) a cached tag stays
 # fresh before the GitHub API is consulted again. Force a fresh lookup with:
 #   ansible-playbook ... -e gh_release_cache_ttl=0
-gh_release_cache_dir: "{{ ansible_env.HOME }}/.cache/ansible-github-releases"
+gh_release_cache_dir: "{{ ansible_facts['env']['HOME'] }}/.cache/ansible-github-releases"
 gh_release_cache_ttl: 86400

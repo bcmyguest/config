@@ -3,7 +3,7 @@
 # Keep these in sync with the vendored files/starship.toml (the no-Claude fallback).
 starship_claude_style: powerline
 starship_claude_palette: catppuccin_mocha
-starship_claude_render_tmp: "{{ ansible_env.HOME }}/.claude/.starship.toml.gen"
+starship_claude_render_tmp: "{{ ansible_facts['env']['HOME'] }}/.claude/.starship.toml.gen"
 
 # Patch merged (recursively) into ~/.claude/settings.json. Two concerns:
 #   * statusLine            — points Claude's statusline at the installed script.

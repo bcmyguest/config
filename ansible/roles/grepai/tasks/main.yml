@@ -7,9 +7,9 @@
 
 - name: grepai release arch is supported
   ansible.builtin.assert:
-    that: ansible_architecture in grepai_arch_map
+    that: ansible_facts['architecture'] in grepai_arch_map
     fail_msg: >-
-      No grepai Linux tarball for {{ ansible_architecture }}; upstream
+      No grepai Linux tarball for {{ ansible_facts['architecture'] }}; upstream
       publishes amd64 and arm64 only.
 
 - name: ollama is available
@@ -77,15 +77,15 @@
 
 - name: ensure ~/.local/bin exists
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.local/bin"
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
     state: directory
     mode: "0755"
 
 # Tarball also carries README/LICENSE/CHANGELOG — extract only the binary.
 - name: install grepai binary
   ansible.builtin.unarchive:
-    src: "https://github.com/yoanbernabeu/grepai/releases/download/{{ version_to_install }}/grepai_{{ target_version }}_linux_{{ grepai_arch_map[ansible_architecture] }}.tar.gz"
-    dest: "{{ ansible_env.HOME }}/.local/bin"
+    src: "https://github.com/yoanbernabeu/grepai/releases/download/{{ version_to_install }}/grepai_{{ target_version }}_linux_{{ grepai_arch_map[ansible_facts['architecture']] }}.tar.gz"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
     remote_src: true
     include:
       - grepai

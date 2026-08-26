@@ -1,0 +1,17 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Cursor
+GenericName=Text Editor
+Comment=The AI-powered editor.
+TryExec={{ cursor_bin }}
+Exec={{ cursor_bin }} --no-sandbox %U
+Icon={{ cursor_icon_dir }}/com.cursor.app.png
+Categories=Utility;TextEditor;Development;IDE;
+Keywords=cursor;
+StartupNotify=true
+StartupWMClass=cursor
+
+[Desktop Action NewWindow]
+Exec={{ cursor_bin }} --new-window --no-sandbox %U
+Name=Open a new window

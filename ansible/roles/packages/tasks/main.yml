@@ -1,20 +1,20 @@
 ---
 # Cross-distro system package layer. Everything OS-specific lives in the
-# per-family task and vars files; this file only dispatches on ansible_os_family.
+# per-family task and vars files; this file only dispatches on ansible_facts['os_family'].
 # Static import_tasks + when (not include_tasks with a variable filename) so the
 # role tags from the playbook reach every task and --list-tasks/--check see the
 # full task list on any distro.
 - name: refuse unsupported OS families early
   ansible.builtin.assert:
-    that: ansible_os_family in packages_supported_families
+    that: ansible_facts['os_family'] in packages_supported_families
     fail_msg: >-
-      OS family '{{ ansible_os_family }}' ({{ ansible_distribution }}) is not
+      OS family '{{ ansible_facts['os_family'] }}' ({{ ansible_facts['distribution'] }}) is not
       supported by the packages role. Supported families:
       {{ packages_supported_families | join(', ') }}. To extend it, add
       vars/<Family>.yml (package name map) and tasks/<family>.yml (installer).
 
 - name: load OS-family package vars
-  ansible.builtin.include_vars: "{{ ansible_os_family }}.yml"
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yml"
 
 # `ansible <Tab>` needs argcomplete importable by the interpreter ansible itself
 # runs under (the pipx venv), not just on PATH: ansible/cli/__init__.py wraps
@@ -28,10 +28,10 @@
     state: present
 
 - ansible.builtin.import_tasks: debian.yml
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - ansible.builtin.import_tasks: redhat.yml
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - ansible.builtin.import_tasks: archlinux.yml
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts['os_family'] == 'Archlinux'

@@ -2,7 +2,7 @@
 # Repos to clone under work_repos_dir/<group>/<repo>, and to alias in the
 # shell. `group` is the GitHub owner (user or org) — it doubles as the
 # nesting directory, so two repos from the same owner land side by side.
-work_repos_dir: "{{ ansible_env.HOME }}/work"
+work_repos_dir: "{{ ansible_facts['env']['HOME'] }}/work"
 
 work_repos:
   - group: bcmyguest

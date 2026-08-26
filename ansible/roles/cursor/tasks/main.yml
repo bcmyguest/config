@@ -1,0 +1,107 @@
+---
+# Cursor editor, installed from the upstream cursor.sh download endpoint.
+# The endpoint at /cursor/latest always redirects to the current build,
+# which is parsed for the version number so we can compare and skip
+# when already up to date.
+#
+#   https://api2.cursor.sh/updates/download/golden/linux-{arch}[-deb]/cursor/latest
+#
+# Pin a specific version instead of latest by setting
+# cursor_pinned_version (e.g. "3.17.19") in inventory or --extra-vars.
+
+- name: cursor arch is supported
+  ansible.builtin.assert:
+    that: ansible_facts["architecture"] in cursor_arch_map
+    fail_msg: >-
+      No Cursor Linux build for {{ ansible_facts["architecture"] }}; upstream publishes
+      x64 and arm64 only.
+
+- name: build cursor download URL
+  ansible.builtin.set_fact:
+    cursor_download_url: "https://api2.cursor.sh/updates/download/golden/linux-{{ cursor_arch_map[ansible_facts['architecture']] }}/cursor/{{ cursor_pinned_version | default('latest') }}"
+  check_mode: false
+
+# Probe the redirect URL to discover the latest version without downloading.
+# uri with follow_redirects=none returns 302 + location header.
+- name: probe latest version from download endpoint
+  ansible.builtin.uri:
+    url: "{{ cursor_download_url }}"
+    method: GET
+    follow_redirects: none
+    status_code: 302
+    return_content: false
+  register: cursor_redirect
+  check_mode: false
+
+- name: extract target version from redirect
+  ansible.builtin.set_fact:
+    target_version: "{{ cursor_redirect.location | regex_replace('.*Cursor-([0-9]+\\.[0-9]+\\.[0-9]+)-.*', '\\1') }}"
+  check_mode: false
+
+- name: download cursor
+  when: not ansible_check_mode
+  block:
+    - name: create temporary download directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: cursor
+      register: tmpdir
+
+    - name: download cursor (follow redirect)
+      ansible.builtin.uri:
+        url: "{{ cursor_download_url }}"
+        method: GET
+        follow_redirects: all
+        status_code: 200
+        dest: "{{ tmpdir.path }}/cursor.bin"
+        mode: "0755"
+        force: true
+      check_mode: false
+
+    - name: ensure cursor install dir exists
+      ansible.builtin.file:
+        path: "{{ cursor_install_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: install cursor binary
+      ansible.builtin.copy:
+        src: "{{ tmpdir.path }}/cursor.bin"
+        dest: "{{ cursor_bin }}"
+        mode: "0755"
+        remote_src: true
+
+    - name: remove download directory
+      ansible.builtin.file:
+        path: "{{ tmpdir.path }}"
+        state: absent
+
+- name: ensure cursor config dir exists
+  ansible.builtin.file:
+    path: "{{ cursor_config_dir }}"
+    state: directory
+    mode: "0755"
+
+# Desktop integration so Cursor shows up in GNOME/Ubuntu app search.
+- name: ensure desktop-entry and icon dirs exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ cursor_applications_dir }}"
+    - "{{ cursor_icon_dir }}"
+
+- name: install cursor desktop entry
+  ansible.builtin.template:
+    src: com.cursor.app.desktop.j2
+    dest: "{{ cursor_applications_dir }}/com.cursor.app.desktop"
+    mode: "0644"
+  register: cursor_desktop
+
+- name: refresh desktop database
+  ansible.builtin.command:
+    cmd: update-desktop-database {{ cursor_applications_dir }}
+  changed_when: false
+  failed_when: false
+  when: cursor_desktop is changed

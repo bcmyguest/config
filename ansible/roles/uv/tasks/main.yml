@@ -1,6 +1,6 @@
 - name: set uv target triple for this architecture
   set_fact:
-    uv_target: "uv-{{ 'aarch64' if ansible_architecture == 'aarch64' else 'x86_64' }}-unknown-linux-musl"
+    uv_target: "uv-{{ 'aarch64' if ansible_facts['architecture'] == 'aarch64' else 'x86_64' }}-unknown-linux-musl"
   check_mode: false
 
 - name: get latest release of uv (cached)
@@ -97,9 +97,9 @@
     - name: copy binaries
       ansible.builtin.copy:
         src: "{{ tmpdir.path }}/{{ uv_target }}/"
-        dest: "{{ ansible_env.HOME }}/.local/bin"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
         mode: preserve
-        owner: "{{ ansible_user_id }}"
+        owner: "{{ ansible_facts['user_id'] }}"
   when:
     - not ansible_check_mode
     - version_to_install | default('') | length > 0

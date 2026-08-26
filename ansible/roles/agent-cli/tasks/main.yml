@@ -1,0 +1,9 @@
+---
+# cursor-agent is a Python package, not a standalone binary.
+# Install via pip and ensure the scripts are on PATH.
+
+- name: install cursor-agent via pip
+  ansible.builtin.pip:
+    name: "{{ agent_pip_package }}{{ agent_pip_version }}"
+    state: present
+    extra_args: --break-system-packages

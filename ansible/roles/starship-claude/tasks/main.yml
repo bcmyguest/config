@@ -10,19 +10,19 @@
 
 - name: ensure ~/.local/bin exists
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.local/bin"
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
     state: directory
     mode: "0755"
 
 - name: install the starship-claude statusline script
   ansible.builtin.copy:
     src: starship-claude
-    dest: "{{ ansible_env.HOME }}/.local/bin/starship-claude"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/starship-claude"
     mode: "0755"
 
 - name: ensure ~/.claude exists
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.claude"
+    path: "{{ ansible_facts['env']['HOME'] }}/.claude"
     state: directory
     mode: "0755"
 
@@ -36,7 +36,7 @@
 - name: install the starship-claude reconfigure toolkit (configure.sh + templates)
   ansible.builtin.copy:
     src: toolkit/
-    dest: "{{ ansible_env.HOME }}/.claude/starship-claude/"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.claude/starship-claude/"
     mode: "0755"
 
 # configure.sh expects PLUGIN_ROOT/bin/starship-claude to exist (preview/compare
@@ -44,7 +44,7 @@
 - name: place the statusline script inside the toolkit bin
   ansible.builtin.copy:
     src: starship-claude
-    dest: "{{ ansible_env.HOME }}/.claude/starship-claude/bin/starship-claude"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.claude/starship-claude/bin/starship-claude"
     mode: "0755"
 
 # The starship.toml itself: when Claude Code is installed, (re)generate it through the
@@ -64,7 +64,7 @@
     - name: render starship.toml to a temp file
       ansible.builtin.command:
         argv:
-          - "{{ ansible_env.HOME }}/.claude/starship-claude/bin/configure.sh"
+          - "{{ ansible_facts['env']['HOME'] }}/.claude/starship-claude/bin/configure.sh"
           - --nerdfont
           - --style
           - "{{ starship_claude_style }}"
@@ -77,7 +77,7 @@
     - name: install the generated starship.toml
       ansible.builtin.copy:
         src: "{{ starship_claude_render_tmp }}"
-        dest: "{{ ansible_env.HOME }}/.claude/starship.toml"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.claude/starship.toml"
         remote_src: true
         mode: "0644"
 
@@ -89,7 +89,7 @@
 - name: install the vendored starship.toml (Claude not installed)
   ansible.builtin.copy:
     src: starship.toml
-    dest: "{{ ansible_env.HOME }}/.claude/starship.toml"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.claude/starship.toml"
     mode: "0644"
   when: starship_claude_cli.rc != 0
 
@@ -100,7 +100,7 @@
 # extraKnownMarketplaces and enabledPlugins maps rather than replacing them.
 - name: read existing Claude settings.json
   ansible.builtin.slurp:
-    src: "{{ ansible_env.HOME }}/.claude/settings.json"
+    src: "{{ ansible_facts['env']['HOME'] }}/.claude/settings.json"
   register: claude_settings_raw
   failed_when: false
 
@@ -115,5 +115,5 @@
         | combine(starship_claude_settings_patch, recursive=True)
         | to_nice_json(indent=2)
       }}
-    dest: "{{ ansible_env.HOME }}/.claude/settings.json"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.claude/settings.json"
     mode: "0644"

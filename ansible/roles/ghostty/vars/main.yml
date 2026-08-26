@@ -1,15 +1,15 @@
 ---
 # Where the AppImage lands. ~/.local/bin is already on PATH (XDG default), so
 # unlike llama-cpp this role needs no PATH edit.
-ghostty_bin: "{{ ansible_env.HOME }}/.local/bin/ghostty"
-ghostty_config_dir: "{{ ansible_env.HOME }}/.config/ghostty"
+ghostty_bin: "{{ ansible_facts['env']['HOME'] }}/.local/bin/ghostty"
+ghostty_config_dir: "{{ ansible_facts['env']['HOME'] }}/.config/ghostty"
 
 # Desktop-launcher integration (AppImages register neither an app-menu entry nor
 # an icon on their own). The icon is 256x256, so it goes in that hicolor bucket.
-ghostty_applications_dir: "{{ ansible_env.HOME }}/.local/share/applications"
-ghostty_icon_dir: "{{ ansible_env.HOME }}/.local/share/icons/hicolor/256x256/apps"
+ghostty_applications_dir: "{{ ansible_facts['env']['HOME'] }}/.local/share/applications"
+ghostty_icon_dir: "{{ ansible_facts['env']['HOME'] }}/.local/share/icons/hicolor/256x256/apps"
 
-# pkgforge-dev names its assets by CPU arch; ansible_architecture already uses
+# pkgforge-dev names its assets by CPU arch; ansible_facts['architecture'] already uses
 # the same tokens, but map explicitly so an unexpected arch fails loudly rather
 # than building a bogus URL.
 ghostty_arch_map:

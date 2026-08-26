@@ -9,7 +9,7 @@
 
 - name: read global mise config
   ansible.builtin.slurp:
-    src: "{{ ansible_env.HOME }}/.config/mise/config.toml"
+    src: "{{ ansible_facts['env']['HOME'] }}/.config/mise/config.toml"
   register: mise_config
   failed_when: false
 #

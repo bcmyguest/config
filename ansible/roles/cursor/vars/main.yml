@@ -1,0 +1,10 @@
+---
+cursor_install_dir: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+cursor_bin: "{{ cursor_install_dir }}/cursor"
+cursor_config_dir: "{{ ansible_facts['env']['HOME'] }}/.config/cursor"
+cursor_applications_dir: "{{ ansible_facts['env']['HOME'] }}/.local/share/applications"
+cursor_icon_dir: "{{ ansible_facts['env']['HOME'] }}/.local/share/icons/hicolor/256x256/apps"
+
+cursor_arch_map:
+  x86_64: x64
+  aarch64: arm64

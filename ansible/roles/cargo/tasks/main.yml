@@ -4,14 +4,14 @@
 
 - name: check for rustup
   ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.cargo/bin/rustup"
+    path: "{{ ansible_facts['env']['HOME'] }}/.cargo/bin/rustup"
   register: rustup_bin
   check_mode: false
 
 - name: get current cargo version
   ansible.builtin.command:
     argv:
-      - "{{ ansible_env.HOME }}/.cargo/bin/cargo"
+      - "{{ ansible_facts['env']['HOME'] }}/.cargo/bin/cargo"
       - --version
   register: current_version
   ignore_errors: true
@@ -43,14 +43,14 @@
     - name: run rustup-init (installs cargo/rustc into ~/.cargo/bin, adds to shell PATH)
       ansible.builtin.command:
         cmd: "{{ tmpdir.path }}/rustup-init.sh -y --default-toolchain stable --profile default"
-        creates: "{{ ansible_env.HOME }}/.cargo/bin/cargo"
+        creates: "{{ ansible_facts['env']['HOME'] }}/.cargo/bin/cargo"
   when:
     - not rustup_bin.stat.exists
     - not ansible_check_mode
 
 - name: update rust stable toolchain
   ansible.builtin.command:
-    cmd: "{{ ansible_env.HOME }}/.cargo/bin/rustup update stable"
+    cmd: "{{ ansible_facts['env']['HOME'] }}/.cargo/bin/rustup update stable"
   register: rustup_update
   changed_when: "'updated' in rustup_update.stdout or 'installing' in rustup_update.stdout"
   when:

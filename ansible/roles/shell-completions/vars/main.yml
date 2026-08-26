@@ -16,19 +16,19 @@
 # has) a lazy variant - the eager/lazy split is a bash-only problem.
 shell_completions_shells:
   - name: bash
-    dir: "{{ ansible_env.HOME }}/.bashrc.d"
+    dir: "{{ ansible_facts['env']['HOME'] }}/.bashrc.d"
     filename: "{tool}-completion.bash"
-    lazy_dir: "{{ ansible_env.HOME }}/.local/share/bash-completion/completions"
+    lazy_dir: "{{ ansible_facts['env']['HOME'] }}/.local/share/bash-completion/completions"
     lazy_filename: "{tool}"
     lazy_probe:
       - bash
       - -ic
       - declare -F _comp_load >/dev/null || declare -F __load_completion >/dev/null
   - name: zsh
-    dir: "{{ ansible_env.HOME }}/.zsh/completions"
+    dir: "{{ ansible_facts['env']['HOME'] }}/.zsh/completions"
     filename: "_{tool}"
   - name: fish
-    dir: "{{ ansible_env.HOME }}/.config/fish/completions"
+    dir: "{{ ansible_facts['env']['HOME'] }}/.config/fish/completions"
     filename: "{tool}.fish"
 
 # ansible-playbook may be launched from a login shell that has not picked up
@@ -45,10 +45,10 @@ shell_completions_shells:
 # .so files out of ~/.local/bin and adds the dir to ~/.bashrc, so it only exists
 # on an interactive PATH.
 shell_completions_path: >-
-  {{ ansible_env.HOME }}/.local/bin:{{ ansible_env.HOME }}/.cargo/bin:{{
-  ansible_env.HOME }}/.opencode/bin:{{ ansible_env.HOME
-  }}/.local/share/mise/shims:{{ ansible_env.HOME }}/.local/llama-cpp/bin:{{
-  ansible_env.PATH }}
+  {{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_facts['env']['HOME'] }}/.cargo/bin:{{
+  ansible_facts['env']['HOME'] }}/.opencode/bin:{{ ansible_facts['env']['HOME']
+  }}/.local/share/mise/shims:{{ ansible_facts['env']['HOME'] }}/.local/llama-cpp/bin:{{
+  ansible_facts['env']['PATH'] }}
 
 # Every entry was verified against the real binary: the argv exits 0, writes a
 # completion script to stdout, and is byte-stable across runs (which is what

@@ -166,7 +166,7 @@
 # silently chmod it; on a fresh box blockinfile creates it under umask.
 - name: source the bashrc.d drop-ins from ~/.bashrc
   ansible.builtin.blockinfile:
-    path: "{{ ansible_env.HOME }}/.bashrc"
+    path: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
     create: true
     marker: "# {mark} ANSIBLE MANAGED BLOCK: bashrc.d"
     block: |
@@ -184,7 +184,7 @@
 # startup time.
 - name: put the completions dir on $fpath in ~/.zshrc
   ansible.builtin.blockinfile:
-    path: "{{ ansible_env.HOME }}/.zshrc"
+    path: "{{ ansible_facts['env']['HOME'] }}/.zshrc"
     create: true
     marker: "# {mark} ANSIBLE MANAGED BLOCK: zsh completions"
     insertbefore: BOF
@@ -279,7 +279,7 @@
 # place for the user's own snippets and this role does not own everything in it.
 - name: check whether anything still uses the bashrc.d drop-in directory
   ansible.builtin.find:
-    paths: "{{ ansible_env.HOME }}/.bashrc.d"
+    paths: "{{ ansible_facts['env']['HOME'] }}/.bashrc.d"
     file_type: any
   register: shell_completions_leftovers
   changed_when: false
@@ -287,7 +287,7 @@
 
 - name: retire the bashrc.d drop-in loop once nothing is left to source
   ansible.builtin.blockinfile:
-    path: "{{ ansible_env.HOME }}/.bashrc"
+    path: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
     marker: "# {mark} ANSIBLE MANAGED BLOCK: bashrc.d"
     state: absent
   when:
@@ -296,7 +296,7 @@
 
 - name: remove the empty bashrc.d directory
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.bashrc.d"
+    path: "{{ ansible_facts['env']['HOME'] }}/.bashrc.d"
     state: absent
   when:
     - "'bash' in shell_completions_lazy"
