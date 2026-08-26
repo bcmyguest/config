@@ -14,18 +14,17 @@
 #   - llama-cpp   llama.cpp server build
 #   - lemond      lemonade-server (OpenAI-compatible local LLM serving)
 #   - openwebui   chat frontend for lemond/ollama (docker container)
-#   - codegraph   local code knowledge graph MCP server for coding agents
 #   - grepai      local semantic code search for coding agents; needs ollama
-#                 (pulls the nomic-embed-text embedding model)
-#   - milacoder   Mila coding CLI (private GitHub release via gh + npm);
-#                 soft-skips when gh has no access to mila-studios/mila-coder.
-#                 Needs node/npm/gh from nvim.yml (mise + gh roles).
+#                 on PATH (not installed by ansible — see README), and pulls
+#                 the nomic-embed-text embedding model
 #   - shell-completions
 #                 regenerates shell completions for whatever of the above is
-#                 installed; shared with nvim.yml, runs last
+#                 installed; shared with nvim.yml/coding.yml, runs last
 #
 # ollama itself is NOT installed here. If you want it, drop the systemd
 # override at ../ollama.service.d/override.conf into the ollama unit by hand.
+#
+# Other coding-agent tooling (codegraph, milacoder) lives in coding.yml.
 - hosts: localhost
   pre_tasks:
     # Install the galaxy deps so a fresh clone works with a bare `ansible-playbook
@@ -60,18 +59,14 @@
     - role: openwebui
       tags: [openwebui]
       become: true
-    - role: codegraph
-      tags: [codegraph]
     - role: grepai
       tags: [grepai]
-    - role: milacoder
-      tags: [milacoder]
     # Last, same as in nvim.yml: it regenerates shell completions from the
     # binaries the roles above just installed/upgraded. Without it here, the
     # tools this playbook installs would only pick up completions later and by
     # accident, whenever nvim.yml next ran and happened to find them on PATH.
     # The role's registry is shared and gated on each tool's binaries being on
-    # PATH, so the two playbooks generate the overlap identically and neither
-    # deletes the other's files.
+    # PATH, so all three playbooks generate the overlap identically and none
+    # deletes another's files.
     - role: shell-completions
       tags: [shell-completions]

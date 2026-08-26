@@ -1,0 +1,32 @@
+---
+# Optional, opt-in personal workspace setup. NOT run by nvim.yml.
+#
+#   ansible-playbook work.yml
+#
+# Pieces:
+#   - gitconfig   ~/.gitconfig settings (roles/gitconfig/vars/main.yml), applied
+#                 with `git config --global` so anything else already in the
+#                 file is left alone
+#   - work-repos  clones the repos listed in roles/work-repos/vars/main.yml
+#                 into ~/work/<group>/<repo> via the `gh` CLI (so private
+#                 repos work off existing gh auth, no SSH key setup needed),
+#                 and aliases each one in ~/.bashrc.d/git: `<repo>` cds into it
+#
+# Needs gh on PATH (nvim.yml --tags gh) for work-repos. No sudo.
+- hosts: localhost
+  pre_tasks:
+    # gitconfig needs community.general.git_config; install the galaxy deps
+    # so a fresh clone works with a bare `ansible-playbook work.yml`, matching
+    # the other playbooks.
+    - name: install galaxy requirements
+      ansible.builtin.command:
+        argv: [ansible-galaxy, install, -r, requirements.yml]
+      register: galaxy_requirements
+      changed_when: "'Installing' in galaxy_requirements.stdout"
+      check_mode: false
+      tags: [always]
+  roles:
+    - role: gitconfig
+      tags: [gitconfig]
+    - role: work-repos
+      tags: [work-repos]

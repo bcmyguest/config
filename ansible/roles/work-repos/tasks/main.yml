@@ -1,0 +1,141 @@
+---
+# Clones the repos listed in vars/main.yml into work_repos_dir/<group>/<repo>,
+# then aliases each one in the shell (`<repo>` cds into it). Uses `gh repo
+# clone` rather than the git module so private repos (mila-studios/*) work
+# off the same gh auth milacoder already relies on — no separate SSH key
+# setup needed.
+#
+# Idempotent and safe with local work: a repo already on disk is left alone
+# (never pulled/reset), and access is only probed for repos not yet cloned.
+
+- name: work-repos requires gh
+  ansible.builtin.command:
+    argv: [gh, --version]
+  register: work_repos_gh_check
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: fail when gh is missing
+  ansible.builtin.fail:
+    msg: >-
+      work-repos clones via the `gh` CLI and needs it on PATH
+      (run nvim.yml --tags gh first).
+  when: work_repos_gh_check.rc != 0
+
+- name: resolve each repo's destination
+  ansible.builtin.set_fact:
+    work_repos_resolved: >-
+      {{ work_repos_resolved | default([]) + [item | combine({
+           'owner_repo': item.group ~ '/' ~ item.repo,
+           'dest': work_repos_dir ~ '/' ~ item.group ~ '/' ~ item.repo,
+         })] }}
+  loop: "{{ work_repos }}"
+  loop_control:
+    label: "{{ item.group }}/{{ item.repo }}"
+
+- name: check which repos are already cloned
+  ansible.builtin.stat:
+    path: "{{ item.dest }}/.git"
+  loop: "{{ work_repos_resolved }}"
+  loop_control:
+    label: "{{ item.owner_repo }}"
+  register: work_repos_stat
+  check_mode: false
+
+- name: split already-cloned repos from the rest
+  ansible.builtin.set_fact:
+    work_repos_present: >-
+      {{ work_repos_stat.results | selectattr('stat.exists')
+         | map(attribute='item') | list }}
+    work_repos_missing: >-
+      {{ work_repos_stat.results | rejectattr('stat.exists')
+         | map(attribute='item') | list }}
+
+# Only the repos not already on disk need an access check — an existing
+# checkout is never touched, so its access no longer matters.
+- name: probe access to repos not yet cloned
+  ansible.builtin.command:
+    argv: [gh, api, "repos/{{ item.owner_repo }}", --jq, .id]
+  loop: "{{ work_repos_missing }}"
+  loop_control:
+    label: "{{ item.owner_repo }}"
+  register: work_repos_access_probe
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: skip repos this gh account can't see
+  ansible.builtin.debug:
+    msg: >-
+      Skipping {{ item.item.owner_repo }}: no access via gh
+      ({{ item.stderr | default(item.stdout) | trim }}).
+  loop: "{{ work_repos_access_probe.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.owner_repo }}"
+  when: item.rc != 0
+
+- name: clone accessible repos
+  when: not ansible_check_mode
+  block:
+    - name: create the owning group directory
+      ansible.builtin.file:
+        path: "{{ item.item.dest | dirname }}"
+        state: directory
+        mode: "0755"
+      loop: "{{ work_repos_access_probe.results | default([]) | selectattr('rc', 'eq', 0) | list }}"
+      loop_control:
+        label: "{{ item.item.owner_repo }}"
+
+    - name: gh repo clone
+      ansible.builtin.command:
+        argv: [gh, repo, clone, "{{ item.item.owner_repo }}", "{{ item.item.dest }}"]
+      loop: "{{ work_repos_access_probe.results | default([]) | selectattr('rc', 'eq', 0) | list }}"
+      loop_control:
+        label: "{{ item.item.owner_repo }}"
+      register: work_repos_cloned
+      changed_when: true
+
+- name: build the final list of repos present on disk
+  ansible.builtin.set_fact:
+    work_repos_ready: >-
+      {{ work_repos_present
+         + (work_repos_cloned.results | default([])
+            | selectattr('rc', 'defined') | selectattr('rc', 'eq', 0)
+            | map(attribute='item.item') | list) }}
+
+# Aliases live in their own bashrc.d drop-in (not shell-completions' - that
+# one only sources *.bash and is retired entirely on a box where bash
+# autoloads completions, which would silently strand this file). Fully
+# regenerated from work_repos_ready every run, so a repo dropped from
+# vars/main.yml (or that lost gh access) loses its alias too instead of
+# leaving a dangling `cd` behind.
+- name: ensure ~/.bashrc.d exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.bashrc.d"
+    state: directory
+    mode: "0755"
+
+- name: write git repo aliases to ~/.bashrc.d/git
+  ansible.builtin.copy:
+    dest: "{{ ansible_env.HOME }}/.bashrc.d/git"
+    mode: "0644"
+    content: |
+      {% for r in work_repos_ready %}
+      alias {{ r.repo }}='cd {{ r.dest }}'
+      {% endfor %}
+  when: work_repos_ready | length > 0
+
+- name: remove ~/.bashrc.d/git when no repos are cloned
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.bashrc.d/git"
+    state: absent
+  when: work_repos_ready | length == 0
+
+- name: source ~/.bashrc.d/git from ~/.bashrc
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: work repo aliases"
+    block: |
+      [ -r "$HOME/.bashrc.d/git" ] && . "$HOME/.bashrc.d/git"

@@ -93,8 +93,8 @@ sudo apt-get upgrade
 
 ```
 
-Both playbooks install their galaxy dependencies themselves — a `pre_tasks` step runs
-`ansible-galaxy install -r requirements.yml` (community.general + geerlingguy.docker) —
+All three playbooks install their galaxy dependencies themselves — a `pre_tasks` step
+runs `ansible-galaxy install -r requirements.yml` (community.general + geerlingguy.docker) —
 so there is no separate step to remember. You can still run it by hand if you want to
 pre-seed or refresh them:
 
@@ -104,9 +104,9 @@ ansible-galaxy install -r requirements.yml
 
 One constraint worth knowing before editing the playbooks: Ansible resolves every
 `roles:` entry when it *loads* the playbook, before any task runs, so a galaxy role
-listed there must already be on disk. That is why `ai-inference.yml` pulls in
-`geerlingguy.docker` with `include_role` in `pre_tasks` (resolved at task runtime,
-after the install) instead of listing it under `roles:`.
+listed there must already be on disk. That is why `ai-inference.yml` and `coding.yml`
+each pull in `geerlingguy.docker` with `include_role` in `pre_tasks` (resolved at task
+runtime, after the install) instead of listing it under `roles:`.
 
 No errors should occur on the update command.
 
@@ -193,8 +193,8 @@ covers each tool's whole family of commands. A sourced script registers every na
 by itself and needs no links.
 
 Covered: `mise`, `fnox`, `uv`, `uvx`, `rustup`, `cargo`, `gh`, `grepai`,
-`opencode`, `zed`, `kitty`, `ansible`, plus `docker` and `llama-server` from
-`ai-inference.yml`. Each tool declares which shells its generator genuinely supports,
+`opencode`, `zed`, `kitty`, `ansible`, plus `docker` from `ai-inference.yml`/`coding.yml`
+and `llama-server` from `ai-inference.yml`. Each tool declares which shells its generator genuinely supports,
 because three of them do not support all three — `rustup completions fish cargo`
 exits 1 (`cargo does not currently support completions for fish`), `opencode`
 ignores its shell argument entirely, returning a byte-identical bash script for
@@ -256,9 +256,16 @@ The AI inference stack is **opt-in** and lives in its own playbook,
 whole stack, or one piece by tag:
 
 ```
-ansible-playbook ai-inference.yml --ask-become-pass               # docker + llama-cpp + lemond + openwebui
+ansible-playbook ai-inference.yml --ask-become-pass               # docker + llama-cpp + lemond + openwebui + grepai
 ansible-playbook ai-inference.yml --tags lemond --ask-become-pass # just lemond
-ansible-playbook ai-inference.yml --tags milacoder                # Mila coding CLI (no sudo)
+```
+
+Other coding-agent tooling (`codegraph`, `milacoder`) lives in its own opt-in
+playbook, `coding.yml`, alongside docker:
+
+```
+ansible-playbook coding.yml --ask-become-pass               # docker + codegraph + milacoder
+ansible-playbook coding.yml --tags milacoder                # Mila coding CLI (no sudo)
 ```
 
 `milacoder` is opt-in: private GitHub releases via `gh`, soft-skips when this
@@ -297,6 +304,33 @@ docker run -d --name open-webui --network host --restart always \
 - Host networking means the container reaches lemond on plain `localhost:13305`.
 - Docker (`geerlingguy.docker` role) must be installed first; the `openwebui` role talks
   to docker as root, so it runs with `become`.
+
+## work.yml (personal workspace)
+
+Opt-in, not run by `nvim.yml`:
+
+```
+ansible-playbook work.yml
+```
+
+**gitconfig** applies the settings in `roles/gitconfig/vars/main.yml` with
+`git config --global` (`community.general.git_config`), not by templating the
+whole file — so anything else already in `~/.gitconfig` (credential helpers,
+`gh`'s own entries, ...) is left alone. Note `commit.gpgsign = true` in there:
+commits fail until a signing key is actually configured
+(`user.signingkey`/`gpg.format`).
+
+**work-repos** clones a fixed list of repos into `~/work/<group>/<repo>`
+(`group` is the GitHub owner) via the `gh` CLI rather than the git module, so
+private repos work off the same gh auth `milacoder` already relies on (`gh
+auth login`) — no SSH key setup needed. A repo already on disk is never
+pulled or reset, and a repo this gh account can't see is soft-skipped (same
+pattern as `milacoder`). The repo list lives in
+`roles/work-repos/vars/main.yml`; add an entry there to clone/alias another
+one. Aliases (`<repo>` cds into it) are written to `~/.bashrc.d/git`, sourced
+from `~/.bashrc` via its own managed block — deliberately not
+`shell-completions`' bashrc.d loop, since that one only sources `*.bash` and
+is retired entirely on a box where bash autoloads completions.
 
 ## Also not installed in ansible (yet)
 

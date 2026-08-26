@@ -1,0 +1,72 @@
+---
+# ~/.gitconfig settings, applied with `git config --global` (community.general.git_config)
+# rather than templating the whole file, so anything else already in there
+# (credential helpers, gh's own entries, ...) is left alone.
+#
+# Two spelling fixes from the pasted config, since git config keys are
+# freeform and a typo is silently ignored rather than rejected:
+#   diff.algorithim     -> diff.algorithm
+#   diff.mneonicPrefix  -> diff.mnemonicPrefix
+gitconfig_settings:
+  - name: user.email
+    value: brandon.guest@mila.quebec
+  - name: user.name
+    value: Brandon Guest
+  # Not literal-string dead weight: git runs core.editor through a shell, so
+  # $EDITOR is expanded to whatever the environment has at commit time.
+  - name: core.editor
+    value: $EDITOR
+  - name: pull.rebase
+    value: "true"
+  - name: fetch.prune
+    value: "true"
+  - name: fetch.pruneTags
+    value: "true"
+  - name: tag.sort
+    value: version:refname
+  - name: push.default
+    value: simple
+  - name: push.autoSetupRemote
+    value: "true"
+  - name: push.followTags
+    value: "true"
+  - name: init.defaultBranch
+    value: main
+  - name: init.templateDir
+    value: ~/.git-template
+  - name: rerere.enabled
+    value: "true"
+  - name: rerere.autoupdate
+    value: "true"
+  - name: help.autocorrect
+    value: prompt
+  - name: commit.verbose
+    value: "true"
+  # Needs a signing key configured (user.signingkey or an SSH key +
+  # gpg.format=ssh) or every commit fails until one is set up.
+  - name: commit.gpgsign
+    value: "true"
+  - name: rebase.autoStash
+    value: "true"
+  - name: rebase.autoSquash
+    value: "true"
+  - name: rebase.updateRefs
+    value: "true"
+  - name: branch.sort
+    value: -committerdate
+  - name: diff.algorithm
+    value: histogram
+  - name: diff.colorMoved
+    value: plain
+  - name: diff.mnemonicPrefix
+    value: "true"
+  - name: diff.renames
+    value: "true"
+  - name: core.fsmonitor
+    value: "true"
+  - name: core.untrackedCache
+    value: "true"
+  - name: grep.lineNumber
+    value: "true"
+  - name: column.ui
+    value: auto

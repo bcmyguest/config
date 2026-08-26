@@ -47,7 +47,7 @@
 
 - name: extract installed and target build ids
   set_fact:
-    current_build: "{{ (current_version_raw.stdout ~ '\n' ~ current_version_raw.stderr) | regex_search('version:\\s*([0-9]+)', '\\1') | first | default('') }}"
+    current_build: "{{ (current_version_raw.stdout ~ '\n' ~ current_version_raw.stderr) | regex_search('version:\\s*([0-9]+)', '\\1') | default([], true) | first | default('') }}"
     target_build: "{{ version_to_install | regex_search('[0-9]+') }}"
   check_mode: false
 

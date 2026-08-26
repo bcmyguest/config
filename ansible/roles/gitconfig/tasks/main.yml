@@ -1,0 +1,9 @@
+---
+- name: apply ~/.gitconfig settings
+  community.general.git_config:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    scope: global
+  loop: "{{ gitconfig_settings }}"
+  loop_control:
+    label: "{{ item.name }}"
