@@ -15,6 +15,7 @@
 #   - milacoder   Mila coding CLI (private GitHub release via gh + npm);
 #                 soft-skips when gh has no access to mila-studios/mila-coder.
 #                 Needs node/npm/gh from nvim.yml (mise + gh roles).
+#   - vscode      Visual Studio Code from Microsoft's apt repo (Debian only).
 #   - shell-completions
 #                 regenerates shell completions for whatever of the above is
 #                 installed; shared with nvim.yml/ai-inference.yml, runs last
@@ -49,6 +50,8 @@
       tags: [codegraph]
     - role: milacoder
       tags: [milacoder]
+    - role: vscode
+      tags: [vscode]
     # Last, same as in nvim.yml/ai-inference.yml: it regenerates shell completions
     # from the binaries the roles above just installed/upgraded. The role's
     # registry is shared and gated on each tool's binaries being on PATH, so all

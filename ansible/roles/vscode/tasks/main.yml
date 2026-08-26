@@ -1,0 +1,78 @@
+---
+# Visual Studio Code, installed from Microsoft's official apt repository.
+# Self-contained: manages the `code` repo and installs the `code`
+# package without duplicating the full packages role.
+
+- name: refuse unsupported OS families
+  ansible.builtin.assert:
+    that: ansible_os_family in vscode_supported_families
+    fail_msg: >-
+      VS Code role only supports {{ vscode_supported_families | join(', ') }}.
+
+- name: ensure python-debian is available (deb822_repository dependency)
+  ansible.builtin.pip:
+    name: python-debian
+    state: present
+
+- name: detect the system dpkg architecture
+  ansible.builtin.command: dpkg --print-architecture
+  register: dpkg_arch
+  changed_when: false
+
+- name: ensure Microsoft VS Code apt repo is present
+  ansible.builtin.deb822_repository:
+    name: vscode
+    types: deb
+    uris: https://packages.microsoft.com/repos/code
+    suites: stable
+    components: main
+    architectures: "{{ dpkg_arch.stdout }}"
+    signed_by: https://packages.microsoft.com/keys/microsoft.asc
+    state: present
+  become: true
+  register: repo_result
+  until: repo_result is not failed
+  retries: 3
+  delay: 5
+
+- name: refresh apt cache after repo setup
+  ansible.builtin.command: apt-get update
+  become: true
+  changed_when: false
+
+- name: install VS Code package
+  ansible.builtin.apt:
+    name: code
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: ensure ~/.local/bin is on PATH (code CLI)
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+- name: ensure code binary is on PATH
+  ansible.builtin.file:
+    src: /usr/share/code/bin/code
+    dest: "{{ ansible_env.HOME }}/.local/bin/code"
+    state: link
+    force: true
+
+- name: install VS Code extensions
+  ansible.builtin.command:
+    argv:
+      - code
+      - --install-extension
+      - "{{ item }}"
+      - --force
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  register: ext_result
+  changed_when: "'was successfully installed' in ext_result.stderr"
+  loop: "{{ vscode_extensions }}"
+  loop_control:
+    label: "{{ item }}"
+  check_mode: false

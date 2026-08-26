@@ -1,0 +1,10 @@
+---
+vscode_supported_families:
+  - Debian
+
+# VS Code extensions installed via `code --install-extension`.
+# Override or extend this list from the playbook or CLI:
+#   ansible-playbook coding.yml --tags vscode --extra-vars "vscode_extensions=['ms-python.black-formatter']"
+vscode_extensions:
+  - charliermarsh.ruff
+  - ms-python.python
