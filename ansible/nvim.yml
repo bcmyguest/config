@@ -64,8 +64,6 @@
       tags: [ghostty]
     - role: kitty
       tags: [kitty]
-    - role: zed-editor
-      tags: [zed-editor]
     # starship-claude is retired from the run but its role is kept on disk for
     # reference; powerline-claude owns the Claude Code statusline now and
     # cleans up the artifacts the old role installed.

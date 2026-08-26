@@ -172,6 +172,14 @@ shell_completions_tools:
     requires: [opencode]
     shells: [bash]
     argv: [opencode, completion, bash]
+  - name: cursor
+    requires: [cursor]
+    shells: [bash, zsh, fish]
+    argv: [cursor, generate-shell-completion, "{shell}"]
+  - name: cursor-agent
+    requires: [cursor-agent]
+    shells: [bash, zsh, fish]
+    argv: [cursor-agent, completion, "{shell}"]
   - name: zed
     requires: [zed]
     shells: [bash, zsh, fish]

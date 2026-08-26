@@ -73,6 +73,13 @@
 - name: Installed correct version
   debug:
     var: version_to_install != current_version
+- name: deploy opencode config
+  ansible.builtin.template:
+    src: opencode.json.j2
+    dest: "{{ ansible_env.HOME }}/.config/opencode/opencode.json"
+    mode: "0644"
+    force: false
+  when: not ansible_check_mode
 - block:
     - name: create temporary download directory
       ansible.builtin.tempfile:

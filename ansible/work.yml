@@ -11,8 +11,16 @@
 #                 into ~/work/<group>/<repo> via the `gh` CLI (so private
 #                 repos work off existing gh auth, no SSH key setup needed),
 #                 and aliases each one in ~/.bashrc.d/git: `<repo>` cds into it
+#   - cursor      installs the Cursor editor (cursor.com) from the upstream
+#                 Linux tarball into ~/.local/bin/cursor
+#   - agent-cli   installs the Cursor Agent CLI from
+#                 civai-technologies/cursor-agent. Needs gh on PATH for cached
+#                 release lookups.
+#   - zed-editor  installs the Zed editor (zed-industries/zed) — moved here so
+#                 it is opt-in rather than on the default nvim.yml path.
 #
-# Needs gh on PATH (nvim.yml --tags gh) for work-repos. No sudo.
+# Needs gh on PATH (nvim.yml --tags gh) for work-repos and agent-cli cached
+# release lookups. No sudo.
 - hosts: localhost
   pre_tasks:
     # gitconfig needs community.general.git_config; install the galaxy deps
@@ -30,3 +38,9 @@
       tags: [gitconfig]
     - role: work-repos
       tags: [work-repos]
+    - role: cursor
+      tags: [cursor]
+    - role: agent-cli
+      tags: [agent-cli]
+    - role: zed-editor
+      tags: [zed-editor]

@@ -104,3 +104,11 @@
     - not ansible_check_mode
     - version_to_install | default('') | length > 0
     - version_to_install != current_version
+
+# uv tool install places executables in ~/.local/bin; ensure that directory is
+# on the shell PATH so tools (prek, etc.) are callable directly without `uvx`.
+- name: ensure uv tool executables are on PATH
+  ansible.builtin.command:
+    cmd: uv tool update-shell
+  changed_when: false
+  check_mode: false

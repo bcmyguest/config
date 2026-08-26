@@ -1,2 +1,4 @@
 ---
-# uv installs straight into ~/.local/bin (already on PATH); no extra vars needed.
+# uv installs into ~/.local/bin (on PATH via XDG default). The role also runs
+# `uv tool update-shell` so any `uv tool install` executables land in that dir
+# and are callable directly (no `uvx` prefix needed).
