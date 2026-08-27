@@ -1,0 +1,5 @@
+#!/bin/sh
+# Launcher for the user-local Obsidian unpack. The bundled chrome-sandbox helper
+# needs to be setuid root, which a no-sudo install cannot do, so run Obsidian's
+# Electron with its sandbox disabled.
+exec "{{ obsidian_bin }}" --no-sandbox "$@"

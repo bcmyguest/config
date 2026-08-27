@@ -86,6 +86,10 @@ shell_completions_path: >-
 #                       and --help-all mentions neither "complet" nor "shell"
 #   open-webui        - the openwebui role runs a docker container, there is no
 #                       CLI on the host to generate from
+#   obsidian          - GUI Electron app; the bundled obsidian-cli needs a
+#                       running Obsidian instance to answer anything at all, so
+#                       every probe form (including --help) just prints "The CLI
+#                       is unable to find Obsidian" and exits 0
 #   glab              - supports `glab completion -s <shell>` but is not
 #                       installed; it stays listed here so installing it and
 #                       re-running the tag is all that is needed

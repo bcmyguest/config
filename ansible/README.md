@@ -332,6 +332,17 @@ from `~/.bashrc` via its own managed block — deliberately not
 `shell-completions`' bashrc.d loop, since that one only sources `*.bash` and
 is retired entirely on a box where bash autoloads completions.
 
+**obsidian** unpacks the upstream Obsidian Linux tarball into
+`~/.local/obsidian` (no sudo), with a `~/.local/bin/obsidian` launcher and a
+desktop entry. Two things to know: the version comes from the repo's
+`desktop-releases.json` manifest, not from GitHub's "latest release" — Obsidian
+cuts Android-only releases (v1.13.8 shipped an `.apk` and nothing else) whose
+tag has no Linux tarball — and the launcher passes `--no-sandbox`, because the
+bundled `chrome-sandbox` has to be setuid root and a no-sudo install cannot do
+that (the raw binary aborts otherwise). The tarball is preferred over the
+AppImage so nothing depends on FUSE/`libfuse2t64`. Pin a version with
+`-e obsidian_pinned_version=1.13.7`.
+
 ## Also not installed in ansible (yet)
 
 - chezmoi

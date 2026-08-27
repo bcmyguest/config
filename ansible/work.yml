@@ -20,6 +20,9 @@
 #                 it is opt-in rather than on the default nvim.yml path.
 #   - slack       unpacks the official Slack .deb into ~/.local/slack (no sudo)
 #                 with a ~/.local/bin/slack launcher and a desktop entry
+#   - obsidian    unpacks the official Obsidian Linux tarball into
+#                 ~/.local/obsidian (no sudo) with a ~/.local/bin/obsidian
+#                 launcher and a desktop entry
 #
 # Needs gh on PATH (nvim.yml --tags gh) for work-repos and agent-cli cached
 # release lookups. No sudo.
@@ -46,3 +49,5 @@
       tags: [agent-cli]
     - role: slack
       tags: [slack]
+    - role: obsidian
+      tags: [obsidian]

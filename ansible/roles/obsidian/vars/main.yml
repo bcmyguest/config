@@ -1,0 +1,31 @@
+---
+# Obsidian ships Linux as an AppImage or a plain tarball; the tarball is used
+# here so nothing depends on FUSE/libfuse2 (see the README's "not installed in
+# ansible" note about libfuse2t64). The archive wraps everything in a
+# version-named dir (obsidian-<version>/), which is stripped on extract so the
+# install prefix stays stable across upgrades.
+obsidian_install_dir: "{{ ansible_facts['env']['HOME'] }}/.local/obsidian"
+obsidian_bin: "{{ obsidian_install_dir }}/obsidian"
+obsidian_icon: "{{ obsidian_install_dir }}/resources/icon.png"
+obsidian_launcher: "{{ ansible_facts['env']['HOME'] }}/.local/bin/obsidian"
+obsidian_applications_dir: "{{ ansible_facts['env']['HOME'] }}/.local/share/applications"
+
+# The unpacked tree carries no version metadata of its own once the
+# version-named top dir is stripped, so stamp the installed version here to
+# make re-runs idempotent (same approach as roles/slack).
+obsidian_version_file: "{{ obsidian_install_dir }}/.ansible_installed_version"
+
+# Desktop asset names: obsidian-<version>.tar.gz on x86_64,
+# obsidian-<version>-arm64.tar.gz on aarch64. Map to the suffix and fail loudly
+# on anything else.
+obsidian_arch_suffix:
+  x86_64: ""
+  aarch64: "-arm64"
+
+# Authoritative "latest desktop version" manifest. The repo's GitHub "latest
+# release" is unreliable here — Obsidian cuts Android-only releases (v1.13.8
+# shipped an .apk and nothing else), so a latest_release lookup can point at a
+# tag with no Linux tarball at all. This manifest only ever names a desktop
+# build.
+obsidian_releases_manifest: https://raw.githubusercontent.com/obsidianmd/obsidian-releases/master/desktop-releases.json
+obsidian_download_base: https://github.com/obsidianmd/obsidian-releases/releases/download

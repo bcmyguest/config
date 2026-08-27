@@ -1,0 +1,153 @@
+---
+# Obsidian desktop, installed from the upstream Linux tarball
+# (obsidianmd/obsidian-releases, obsidian-<version>[-arm64].tar.gz) into
+# ~/.local/obsidian with a launcher in ~/.local/bin and a desktop entry.
+#
+# work.yml is a no-sudo playbook, so the bundled chrome-sandbox helper can't be
+# made setuid root — the launcher runs Electron with --no-sandbox, same as the
+# slack role.
+#
+# Pin a specific version instead of latest by setting obsidian_pinned_version
+# (e.g. "1.13.7") in inventory or --extra-vars.
+
+- name: obsidian arch is supported
+  ansible.builtin.assert:
+    that: ansible_facts['architecture'] in obsidian_arch_suffix
+    fail_msg: >-
+      No Obsidian Linux tarball for {{ ansible_facts['architecture'] }}; upstream publishes
+      x86_64 and arm64 only.
+
+- name: query latest obsidian desktop release
+  ansible.builtin.uri:
+    url: "{{ obsidian_releases_manifest }}"
+    method: GET
+    return_content: true
+  register: obsidian_manifest
+  when: obsidian_pinned_version is not defined
+  check_mode: false
+
+# raw.githubusercontent serves the manifest as text/plain, so uri leaves it
+# unparsed — decode it here rather than reaching for a .json attribute that
+# only exists when the server sends application/json.
+- name: choose version to install
+  ansible.builtin.set_fact:
+    target_version: "{{ obsidian_pinned_version | default((obsidian_manifest.content | from_json).latestVersion) }}"
+  check_mode: false
+
+- name: latest desktop version lookup succeeded
+  ansible.builtin.assert:
+    that: target_version is match('^[0-9]+\\.[0-9]+\\.[0-9]+$')
+    fail_msg: "Obsidian desktop-releases.json did not yield a version: {{ target_version | default('no response') }}"
+
+- name: build obsidian asset name
+  ansible.builtin.set_fact:
+    obsidian_asset: "obsidian-{{ target_version }}{{ obsidian_arch_suffix[ansible_facts['architecture']] }}.tar.gz"
+  check_mode: false
+
+- name: build obsidian download URL
+  ansible.builtin.set_fact:
+    obsidian_download_url: "{{ obsidian_download_base }}/v{{ target_version }}/{{ obsidian_asset }}"
+  check_mode: false
+
+- name: get installed obsidian version
+  ansible.builtin.slurp:
+    src: "{{ obsidian_version_file }}"
+  register: obsidian_version_raw
+  failed_when: false
+  check_mode: false
+
+- name: extract installed version
+  ansible.builtin.set_fact:
+    current_version: "{{ (obsidian_version_raw.content | default('') | b64decode | trim) if obsidian_version_raw.content is defined else '' }}"
+  check_mode: false
+
+- name: show obsidian versions
+  ansible.builtin.debug:
+    msg: "installed={{ current_version | default('none', true) }} target={{ target_version }}"
+
+- name: install obsidian bundle
+  when:
+    - not ansible_check_mode
+    - target_version != current_version
+  block:
+    - name: create tempfile for obsidian tarball
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .tar.gz
+      register: obsidian_tmp
+
+    - name: download obsidian tarball
+      ansible.builtin.get_url:
+        url: "{{ obsidian_download_url }}"
+        dest: "{{ obsidian_tmp.path }}"
+        mode: "0644"
+        force: true
+
+    # Remove previous install on upgrade so removed files don't linger
+    - name: remove previous obsidian install
+      ansible.builtin.file:
+        path: "{{ obsidian_install_dir }}"
+        state: absent
+
+    - name: create obsidian install dir
+      ansible.builtin.file:
+        path: "{{ obsidian_install_dir }}"
+        state: directory
+        mode: "0755"
+
+    # --strip-components=1 drops the version-named top dir, keeping the install
+    # prefix (and so the launcher/desktop entry paths) stable across upgrades.
+    - name: extract obsidian bundle
+      ansible.builtin.unarchive:
+        src: "{{ obsidian_tmp.path }}"
+        dest: "{{ obsidian_install_dir }}"
+        remote_src: true
+        extra_opts: [--strip-components=1]
+
+    - name: stamp installed version
+      ansible.builtin.copy:
+        content: "{{ target_version }}\n"
+        dest: "{{ obsidian_version_file }}"
+        mode: "0644"
+
+    - name: remove obsidian tarball tempfile
+      ansible.builtin.file:
+        path: "{{ obsidian_tmp.path }}"
+        state: absent
+
+- name: ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+# Launcher and desktop entry are deployed regardless of version so a broken or
+# deleted one is repaired on re-run.
+- name: install obsidian launcher
+  ansible.builtin.template:
+    src: obsidian.j2
+    dest: "{{ obsidian_launcher }}"
+    mode: "0755"
+
+# Desktop integration so Obsidian shows up in GNOME/Ubuntu app search. Upstream
+# ships no .desktop in the tarball, so this one is ours, pointing at the
+# launcher and the bundled icon.
+- name: ensure desktop-entry dir exists
+  ansible.builtin.file:
+    path: "{{ obsidian_applications_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: install obsidian desktop entry
+  ansible.builtin.template:
+    src: md.obsidian.Obsidian.desktop.j2
+    dest: "{{ obsidian_applications_dir }}/md.obsidian.Obsidian.desktop"
+    mode: "0644"
+  register: obsidian_desktop
+
+- name: refresh desktop database
+  ansible.builtin.command:
+    cmd: update-desktop-database {{ obsidian_applications_dir }}
+  changed_when: false
+  failed_when: false
+  when: obsidian_desktop is changed
