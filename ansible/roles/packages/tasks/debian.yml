@@ -1,7 +1,8 @@
 ---
 # Third-party repos via built-in modules: deb822_repository fetches + dearmors the
-# signing key and writes a Signed-By .sources; apt_repository handles PPAs and
-# their Launchpad keys. No manual gpg, keyserver, or NO_PUBKEY parsing.
+# signing key and writes a Signed-By .sources for vendor repos; PPAs need the
+# key fetched from Launchpad first, then deb822_repository writes the .sources.
+# No manual gpg, keyserver, or NO_PUBKEY parsing elsewhere in this file.
 
 # deb822_repository parses sources with python-debian, which must live in the
 # interpreter ansible runs modules under (the pipx venv) — install it there.
@@ -94,12 +95,41 @@
   become: true
   when: monolithic_sources.stat.exists
 
-- name: manage Launchpad PPAs (signing key installed automatically)
-  ansible.builtin.apt_repository:
-    repo: "ppa:{{ item }}"
+# Fetch the PPA signing key from the keyserver URL defined in apt_ppas, then write
+# the deb822 .sources referencing the local keyring file.
+- name: create /etc/apt/keyrings for PPA keys
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: fetch Launchpad PPA signing key
+  ansible.builtin.get_url:
+    url: "{{ item.signed_by }}"
+    dest: "/etc/apt/keyrings/ppa-{{ item.ppa | replace('ppa:', '') | split('/') | first | replace('/', '--') }}.gpg"
+    mode: "0644"
+  become: true
+  loop: "{{ apt_ppas }}"
+  loop_control:
+    label: "{{ item.ppa | replace('ppa:', '') }}"
+  register: _ppa_keys
+  changed_when: false
+  failed_when: false
+
+- name: manage Launchpad PPAs as deb822 sources
+  ansible.builtin.deb822_repository:
+    name: "ppa-{{ item.ppa | replace('ppa:', '') | split('/') | first | replace('/', '--') }}"
+    types: deb
+    uris: "https://ppa.launchpad.net/{{ item.ppa | replace('ppa:', '') | split('/') | first }}/{{ item.ppa | replace('ppa:', '') | split('/') | last }}"
+    suites: "{{ ansible_facts['distribution_release'] }}"
+    components: main
+    signed_by: "/etc/apt/keyrings/ppa-{{ item.ppa | replace('ppa:', '') | split('/') | first | replace('/', '--') }}.gpg"
     state: present
   become: true
   loop: "{{ apt_ppas }}"
+  loop_control:
+    label: "{{ item.ppa | replace('ppa:', '') }}"
 
 # libfuse2t64 (and other deps) live in the universe component, which is disabled on
 # minimal / curtin-provisioned installs. Enable it in-run instead of requiring a

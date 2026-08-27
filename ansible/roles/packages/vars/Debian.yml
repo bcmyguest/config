@@ -53,8 +53,9 @@ apt_repos:
     suites: "/"
     signed_by: https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key
 
-# Launchpad PPAs. ansible.builtin.apt_repository installs the repo AND its signing
-# key from Launchpad automatically — nothing to fetch or pin by hand.
+# Launchpad PPAs. deb822_repository writes the .sources; the key is fetched from
+# the keyserver using the archive key fingerprint, then deb822 references it.
 # (saiarcot895/chromium-beta dropped: no noble build.)
 apt_ppas:
-  - graphics-drivers/ppa
+  - ppa: graphics-drivers/ppa
+    signed_by: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xEF1AC0787CCFD66B92EED8AF558D55F5
