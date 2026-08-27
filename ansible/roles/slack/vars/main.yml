@@ -1,0 +1,22 @@
+---
+# Slack ships Linux as a .deb only, and work.yml is a no-sudo playbook, so the
+# package is unpacked into ~/.local/slack with `dpkg-deb -x` rather than
+# installed with apt. The deb's own layout (usr/lib/slack, usr/share/...) is
+# kept intact under that prefix.
+slack_install_dir: "{{ ansible_facts['env']['HOME'] }}/.local/slack"
+slack_bin: "{{ slack_install_dir }}/usr/lib/slack/slack"
+slack_icon: "{{ slack_install_dir }}/usr/share/pixmaps/slack.png"
+slack_launcher: "{{ ansible_facts['env']['HOME'] }}/.local/bin/slack"
+slack_applications_dir: "{{ ansible_facts['env']['HOME'] }}/.local/share/applications"
+
+# The unpacked tree carries no package metadata (usr/lib/slack/version is the
+# bundled Electron version, not Slack's), so stamp the installed version
+# ourselves to make re-runs idempotent.
+slack_version_file: "{{ slack_install_dir }}/.ansible_installed_version"
+
+# Upstream publishes linux/x64 only — the release API answers with the x64 deb
+# even when asked for arm64 — so map explicitly and fail loudly on anything else.
+slack_arch_map:
+  x86_64: x64
+
+slack_release_api: https://slack.com/api/desktop.latestRelease

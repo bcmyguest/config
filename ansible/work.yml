@@ -18,6 +18,8 @@
 #                 release lookups.
 #   - zed-editor  installs the Zed editor (zed-industries/zed) — moved here so
 #                 it is opt-in rather than on the default nvim.yml path.
+#   - slack       unpacks the official Slack .deb into ~/.local/slack (no sudo)
+#                 with a ~/.local/bin/slack launcher and a desktop entry
 #
 # Needs gh on PATH (nvim.yml --tags gh) for work-repos and agent-cli cached
 # release lookups. No sudo.
@@ -42,3 +44,5 @@
       tags: [cursor]
     - role: agent-cli
       tags: [agent-cli]
+    - role: slack
+      tags: [slack]

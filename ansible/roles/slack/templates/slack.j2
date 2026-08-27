@@ -1,0 +1,5 @@
+#!/bin/sh
+# Launcher for the user-local Slack unpack. The bundled chrome-sandbox helper
+# needs to be setuid root, which a no-sudo install cannot do, so run Slack's
+# Electron with its sandbox disabled.
+exec "{{ slack_bin }}" --no-sandbox "$@"

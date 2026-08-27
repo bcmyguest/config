@@ -1,0 +1,158 @@
+---
+# Slack desktop, installed from the official Linux .deb
+# (https://slack.com/downloads/linux). The release API
+#
+#   https://slack.com/api/desktop.latestRelease?arch=x64&variant=deb
+#
+# returns {"ok":true,"version":...,"download_url":...} for the current build,
+# so the version can be compared before downloading ~90MB.
+#
+# work.yml is a no-sudo playbook, so the deb is unpacked with `dpkg-deb -x`
+# into ~/.local/slack instead of being installed with apt; the launcher and
+# desktop entry point at the unpacked binary.
+#
+# Pin a specific version instead of latest by setting slack_pinned_version
+# (e.g. "4.51.191") in inventory or --extra-vars.
+
+- name: slack arch is supported
+  ansible.builtin.assert:
+    that: ansible_facts['architecture'] in slack_arch_map
+    fail_msg: >-
+      No Slack Linux build for {{ ansible_facts['architecture'] }}; upstream publishes
+      x86_64 only.
+
+- name: query latest slack release
+  ansible.builtin.uri:
+    url: "{{ slack_release_api }}?arch={{ slack_arch_map[ansible_facts['architecture']] }}&variant=deb"
+    method: GET
+    return_content: true
+  register: slack_release
+  when: slack_pinned_version is not defined
+  check_mode: false
+
+- name: latest release lookup succeeded
+  ansible.builtin.assert:
+    that: slack_release.json.ok | default(false)
+    fail_msg: "Slack release API did not return a release: {{ slack_release.json | default('no response') }}"
+  when: slack_pinned_version is not defined
+
+- name: choose version and download URL
+  ansible.builtin.set_fact:
+    target_version: "{{ slack_pinned_version | default(slack_release.json.version) }}"
+    slack_download_url: >-
+      {{ slack_release.json.download_url
+         if slack_pinned_version is not defined
+         else 'https://downloads.slack-edge.com/desktop-releases/linux/'
+              ~ slack_arch_map[ansible_facts['architecture']] ~ '/'
+              ~ slack_pinned_version ~ '/slack-desktop-' ~ slack_pinned_version ~ '-amd64.deb' }}
+  check_mode: false
+
+- name: get installed slack version
+  ansible.builtin.slurp:
+    src: "{{ slack_version_file }}"
+  register: slack_version_raw
+  failed_when: false
+  check_mode: false
+
+- name: extract installed version
+  ansible.builtin.set_fact:
+    current_version: "{{ (slack_version_raw.content | default('') | b64decode | trim) if slack_version_raw.content is defined else '' }}"
+  check_mode: false
+
+- name: show slack versions
+  ansible.builtin.debug:
+    msg: "installed={{ current_version | default('none', true) }} target={{ target_version }}"
+
+- name: install slack bundle
+  when:
+    - not ansible_check_mode
+    - target_version != current_version
+  block:
+    - name: create tempfile for slack deb
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .deb
+      register: slack_tmp
+
+    - name: download slack deb
+      ansible.builtin.get_url:
+        url: "{{ slack_download_url }}"
+        dest: "{{ slack_tmp.path }}"
+        mode: "0644"
+        force: true
+
+    # Remove previous install on upgrade so removed files don't linger
+    - name: remove previous slack install
+      ansible.builtin.file:
+        path: "{{ slack_install_dir }}"
+        state: absent
+
+    - name: create slack install dir
+      ansible.builtin.file:
+        path: "{{ slack_install_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: unpack slack deb
+      ansible.builtin.command:
+        argv:
+          - dpkg-deb
+          - --extract
+          - "{{ slack_tmp.path }}"
+          - "{{ slack_install_dir }}"
+      changed_when: true
+
+    # The deb's cron.daily job only exists to add Slack's apt repo, which is
+    # meaningless for a user-local unpack (and never runs from here anyway).
+    - name: drop packaging-only files from the unpack
+      ansible.builtin.file:
+        path: "{{ slack_install_dir }}/etc"
+        state: absent
+
+    - name: stamp installed version
+      ansible.builtin.copy:
+        content: "{{ target_version }}\n"
+        dest: "{{ slack_version_file }}"
+        mode: "0644"
+
+    - name: remove slack deb tempfile
+      ansible.builtin.file:
+        path: "{{ slack_tmp.path }}"
+        state: absent
+
+- name: ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+# Launcher and desktop entry are deployed regardless of version so a broken or
+# deleted one is repaired on re-run.
+- name: install slack launcher
+  ansible.builtin.template:
+    src: slack.j2
+    dest: "{{ slack_launcher }}"
+    mode: "0755"
+
+# Desktop integration so Slack shows up in GNOME/Ubuntu app search. Upstream's
+# .desktop references /usr/bin/slack, so we deploy a corrected version pointing
+# at the launcher.
+- name: ensure desktop-entry dir exists
+  ansible.builtin.file:
+    path: "{{ slack_applications_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: install slack desktop entry
+  ansible.builtin.template:
+    src: slack.desktop.j2
+    dest: "{{ slack_applications_dir }}/slack.desktop"
+    mode: "0644"
+  register: slack_desktop
+
+- name: refresh desktop database
+  ansible.builtin.command:
+    cmd: update-desktop-database {{ slack_applications_dir }}
+  changed_when: false
+  failed_when: false
+  when: slack_desktop is changed
