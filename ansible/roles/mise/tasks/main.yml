@@ -120,6 +120,7 @@
     - { name: bun, spec: "bun@latest" }
     - { name: pnpm, spec: "pnpm@latest" }
     - { name: yarn, spec: "yarn@latest" }
+    - { name: codex, spec: "npm:@openai/codex@latest" }
     # usage (usage.jdx.dev) is a runtime dependency of mise's own shell
     # completions, not a dev tool: `mise completion <shell>` emits a script that
     # shells out to `usage complete-word` on every Tab press and prints an error
