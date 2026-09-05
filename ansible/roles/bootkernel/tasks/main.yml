@@ -1,0 +1,18 @@
+---
+# bootkernel: a local helper (not upstream software) that boots a specific
+# installed kernel via grub-reboot / grub-set-default instead of editing the
+# GRUB menu by hand. Vendored in files/ rather than downloaded, so the script
+# itself is the thing this repo version-controls.
+#
+# It lands in /usr/local/bin because it only works as root (it reads
+# /boot/grub/grub.cfg and writes /etc/default/grub), so a root-owned system
+# path matches how it is invoked: `sudo bootkernel ...`. Everything here needs
+# become: true, set on the role entry in personal.yml.
+
+- name: install the bootkernel helper
+  ansible.builtin.copy:
+    src: bootkernel
+    dest: /usr/local/bin/bootkernel
+    owner: root
+    group: root
+    mode: "0755"

@@ -76,6 +76,12 @@ shell_completions_path: >-
 #
 # Deliberately absent, because they have no completion generator at all:
 #   rtk, claude       - no `completion` subcommand in --help
+#   bootkernel        - a hand-written bash script (roles/bootkernel), not a
+#                       CLI framework binary: it parses argv in a `case` and
+#                       knows only --list/--permanent/--reboot. Nothing to
+#                       generate from, and its one real argument is a kernel
+#                       version, which a static script would have to read out
+#                       of /boot/vmlinuz-* itself
 #   codegraph         - re-probed against the installed binary: `completion`,
 #                       `--completion(s)` and `(--)generate-shell-completion` all
 #                       exit 1 ("unknown command"/"unknown option"), and --help

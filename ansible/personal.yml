@@ -1,0 +1,28 @@
+---
+# Opt-in personal machine helpers — small local scripts this repo owns
+# outright, as opposed to the upstream tools the other playbooks install.
+# NOT run by nvim.yml. Needs sudo (the roles here write to /usr/local/bin):
+#
+#   ansible-playbook personal.yml --ask-become-pass
+#
+# or a single piece via tags, e.g.:
+#
+#   ansible-playbook personal.yml --tags bootkernel --ask-become-pass
+#
+# Pieces:
+#   - bootkernel  installs roles/bootkernel/files/bootkernel to
+#                 /usr/local/bin. Boots a chosen installed kernel — one-shot
+#                 (`sudo bootkernel 6.17.0-40-generic`, optionally `-r` to
+#                 reboot straight into it) or permanently (`--permanent`) —
+#                 without hand-editing the GRUB menu. `--list` shows what is
+#                 installed and marks the running kernel.
+#
+# No shell-completions role here, unlike the other playbooks: bootkernel is a
+# plain bash script with no completion generator, so there is nothing for that
+# role to regenerate. No galaxy requirements either — the roles here use only
+# ansible.builtin modules.
+- hosts: localhost
+  roles:
+    - role: bootkernel
+      tags: [bootkernel]
+      become: true

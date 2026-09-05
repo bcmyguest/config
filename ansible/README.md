@@ -93,9 +93,11 @@ sudo apt-get upgrade
 
 ```
 
-All three playbooks install their galaxy dependencies themselves — a `pre_tasks` step
-runs `ansible-galaxy install -r requirements.yml` (community.general + geerlingguy.docker) —
-so there is no separate step to remember. You can still run it by hand if you want to
+`nvim.yml`, `coding.yml`, `ai-inference.yml` and `work.yml` install their galaxy
+dependencies themselves — a `pre_tasks` step runs `ansible-galaxy install -r
+requirements.yml` (community.general + geerlingguy.docker) — so there is no separate
+step to remember. (`personal.yml` has no such step because its roles use only
+`ansible.builtin` modules.) You can still run it by hand if you want to
 pre-seed or refresh them:
 
 ```
@@ -342,6 +344,38 @@ bundled `chrome-sandbox` has to be setuid root and a no-sudo install cannot do
 that (the raw binary aborts otherwise). The tarball is preferred over the
 AppImage so nothing depends on FUSE/`libfuse2t64`. Pin a version with
 `-e obsidian_pinned_version=1.13.7`.
+
+## personal.yml (local helper scripts)
+
+Opt-in, not run by `nvim.yml`. Needs sudo:
+
+```
+ansible-playbook personal.yml --ask-become-pass
+```
+
+This playbook holds scripts the repo owns outright, rather than upstream tools
+it downloads — the script lives in `roles/<name>/files/` and is the artifact
+under version control.
+
+**bootkernel** installs `roles/bootkernel/files/bootkernel` to
+`/usr/local/bin` (root-owned, `0755`). It boots a chosen installed kernel
+without hand-editing the GRUB menu, by resolving the kernel's
+`gnulinux-...` menu entry ID out of `/boot/grub/grub.cfg` — including the
+submenu prefix Ubuntu nests older kernels under — and handing it to
+`grub-reboot` or `grub-set-default`:
+
+```
+sudo bootkernel --list                          # installed kernels, running one marked
+sudo bootkernel 6.17.0-40-generic               # next boot only
+sudo bootkernel 6.17.0-40-generic -r            # ... and reboot into it now
+sudo bootkernel --permanent 6.17.0-40-generic   # make it the default
+```
+
+`--permanent` also rewrites `GRUB_DEFAULT` to `"saved"` in `/etc/default/grub`
+and runs `update-grub`, which is what makes `grub-set-default` stick. Without
+it, a one-shot selection is forgotten after that boot and the machine returns
+to its usual default. There is no shell completion: it is a plain bash script
+with no generator (noted in `roles/shell-completions/vars/main.yml`).
 
 ## Also not installed in ansible (yet)
 

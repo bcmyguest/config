@@ -1,0 +1,55 @@
+#!/bin/bash
+# bootkernel — boot a specific installed kernel without touching the GRUB menu.
+#   sudo bootkernel --list                          list installed kernels
+#   sudo bootkernel 6.17.0-40-generic               one-shot: next boot only
+#   sudo bootkernel 6.17.0-40-generic -r            one-shot, and reboot now
+#   sudo bootkernel --permanent 6.17.0-40-generic   make it the default
+set -euo pipefail
+CFG=/boot/grub/grub.cfg
+PERM=0; REBOOT=0; TARGET=""
+
+for a in "$@"; do
+  case "$a" in
+    --list|-l)
+      running=$(uname -r)
+      for k in $(ls /boot/vmlinuz-* | sed 's|/boot/vmlinuz-||' | sort -V); do
+        if [ "$k" = "$running" ]; then echo "  $k   <- running"; else echo "  $k"; fi
+      done
+      exit 0 ;;
+    --permanent|-p) PERM=1 ;;
+    -r|--reboot)    REBOOT=1 ;;
+    -*) echo "unknown option: $a" >&2; exit 2 ;;
+    *)  TARGET="$a" ;;
+  esac
+done
+
+[ -n "$TARGET" ] || { echo "usage: sudo bootkernel <version> [-r] [--permanent] | --list"; exit 2; }
+[ -r "$CFG" ]    || { echo "cannot read $CFG — run with sudo"; exit 1; }
+[ -e "/boot/vmlinuz-$TARGET" ] || { echo "not installed: $TARGET"; exit 1; }
+
+ENTRY=$(awk -F"'" -v t="$TARGET" '$0 ~ "menuentry " && $0 ~ t && $0 !~ /recovery/ {
+    for (i=1;i<=NF;i++) if ($i ~ /^gnulinux/) { print $i; exit } }' "$CFG")
+SUB=$(awk -F"'" '/^submenu / { for (i=1;i<=NF;i++) if ($i ~ /^gnulinux/) { print $i; exit } }' "$CFG")
+[ -n "$ENTRY" ] || { echo "no GRUB entry found for $TARGET"; exit 1; }
+ID="${SUB:+$SUB>}$ENTRY"
+
+if [ "$PERM" = 1 ]; then
+  if grep -q '^GRUB_DEFAULT=' /etc/default/grub; then
+    sed -i 's|^GRUB_DEFAULT=.*|GRUB_DEFAULT="saved"|' /etc/default/grub
+  else
+    echo 'GRUB_DEFAULT="saved"' >> /etc/default/grub
+  fi
+  update-grub >/dev/null 2>&1
+  grub-set-default "$ID"
+  echo "DEFAULT set -> $TARGET"
+else
+  grub-reboot "$ID"
+  echo "next boot only -> $TARGET   (any later reboot returns to default)"
+fi
+echo "running now    : $(uname -r)"
+
+if [ "$REBOOT" = 1 ]; then
+  echo "rebooting in 3s..."
+  sleep 3
+  systemctl reboot
+fi
