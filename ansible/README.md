@@ -274,6 +274,13 @@ ansible-playbook coding.yml --tags milacoder                # Mila coding CLI (n
 machine has no access to `mila-studios/mila-coder`. Needs `gh` + Node/npm from
 `nvim.yml` (`--tags gh,mise`). After install run `milacoder setup` by hand.
 
+**llama-cpp** takes its build tag from the `nightly-tag.txt` asset on the
+upstream "latest release", not from the release tag itself. llama.cpp cuts a
+versioned stable release (`v0.4.0`) that ships only that pointer file and marks
+every per-build `bNNNNN` tag as a prerelease, so GitHub's latest-release API
+names a tag with no binaries on it. Pin a build with
+`-e pinned_version=b10809`.
+
 ollama is not installed by ansible; drop `../ollama.service.d/override.conf` into
 the ollama unit by hand if you run it.
 

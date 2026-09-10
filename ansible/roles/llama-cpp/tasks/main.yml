@@ -10,31 +10,28 @@
       {{ ansible_facts['architecture'] }}. Build llama.cpp from source or skip the
       llama-cpp tag.
 
-- name: get latest release of llama.cpp (cached)
-  ansible.builtin.include_role:
-    name: github-release-cached
-  vars:
-    gh_user: ggml-org
-    gh_repo: llama.cpp
-
-- name: capture release tag
-  set_fact:
-    release_tag: ""
-  when: release is not defined
-
-- name: capture release tag from release
-  set_fact:
-    release_tag: "{{ release.tag }}"
-  when: release is defined
+# Upstream now cuts a versioned stable release (v0.4.0) whose only asset is
+# nightly-tag.txt naming the blessed build, and marks every per-build bNNNNN tag
+# as a prerelease. The GitHub "latest release" API therefore returns v0.4.0, which
+# ships no binaries at all -- the old lookup produced a 404 download. Read the
+# pointer file instead: no token, no API rate limit, and it names the build
+# upstream considers stable.
+- name: resolve blessed llama.cpp build tag
+  ansible.builtin.uri:
+    url: https://github.com/ggml-org/llama.cpp/releases/latest/download/nightly-tag.txt
+    return_content: true
+  register: llama_cpp_nightly
+  check_mode: false
+  when: pinned_version is not defined
 
 - name: choose version to install
-  set_fact:
-    version_to_install: "{{ pinned_version | default(release_tag) }}"
+  ansible.builtin.set_fact:
+    version_to_install: "{{ pinned_version if pinned_version is defined else (llama_cpp_nightly.content | trim) }}"
   check_mode: false
 
-# Release tags look like "b9632"; the binary reports "version: 9632 (<sha>)".
-# Compare the numeric build id so the role is idempotent (previously it ran a
-# non-existent `llama.cpp` binary, so it re-downloaded on every run).
+# Release tags look like "b10809"; compare the numeric build id so the role is
+# idempotent (it once ran a non-existent `llama.cpp` binary and re-downloaded
+# every run).
 - name: get current llama.cpp version
   ansible.builtin.command:
     argv:
@@ -45,9 +42,19 @@
   changed_when: false
   check_mode: false
 
+- name: collect version output
+  set_fact:
+    llama_version_out: "{{ current_version_raw.stdout ~ '\n' ~ current_version_raw.stderr }}"
+  check_mode: false
+
+# Two formats ship in the wild:
+#   b10280 and older: "version: 10280 (61881b1f7)"
+#   b10809 and newer: "version: 0.4.0-dev (build 10809, commit 5266f24da)"
+# Match "build NNNNN" first -- the new format's leading "version: 0" satisfies the
+# old pattern and would pin current_build at 0, reinstalling on every run.
 - name: extract installed and target build ids
   set_fact:
-    current_build: "{{ (current_version_raw.stdout ~ '\n' ~ current_version_raw.stderr) | regex_search('version:\\s*([0-9]+)', '\\1') | default([], true) | first | default('') }}"
+    current_build: "{{ llama_version_out | regex_search('build\\s+([0-9]+)', '\\1') | default(llama_version_out | regex_search('version:\\s*([0-9]+)', '\\1'), true) | default([], true) | first | default('') }}"
     target_build: "{{ version_to_install | regex_search('[0-9]+') }}"
   check_mode: false
 
