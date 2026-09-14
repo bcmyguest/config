@@ -90,6 +90,9 @@ shell_completions_path: >-
 #   lemonade, lemond  - CLI11 apps (the lemond role's apt package). CLI11 ships
 #                       no completion generator; all five probe forms exit 109
 #                       and --help-all mentions neither "complet" nor "shell"
+#   lazydocker        - a TUI, not a CLI: --help lists four flags and no
+#                       subcommands, and every probe form just reprints that
+#                       help and exits 0
 #   open-webui        - the openwebui role runs a docker container, there is no
 #                       CLI on the host to generate from
 #   obsidian          - GUI Electron app; the bundled obsidian-cli needs a

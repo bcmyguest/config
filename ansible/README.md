@@ -352,6 +352,14 @@ that (the raw binary aborts otherwise). The tarball is preferred over the
 AppImage so nothing depends on FUSE/`libfuse2t64`. Pin a version with
 `-e obsidian_pinned_version=1.13.7`.
 
+**lazydocker** installs the [lazydocker](https://github.com/jesseduffield/lazydocker)
+terminal UI for docker and docker compose as a single static binary in
+`~/.local/bin`, and writes an `lzd` alias to `~/.bashrc.d/lazydocker`, sourced
+from `~/.bashrc` via its own managed block (same reasoning as `work-repos`'
+`~/.bashrc.d/git`). No completion entry in `shell-completions`: lazydocker is a
+TUI with four flags and no subcommands, so there is nothing to generate from.
+Pin a version with `-e pinned_version=v0.25.2`.
+
 ## personal.yml (local helper scripts)
 
 Opt-in, not run by `nvim.yml`. Needs sudo:

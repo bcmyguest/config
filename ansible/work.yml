@@ -23,6 +23,8 @@
 #   - obsidian    unpacks the official Obsidian Linux tarball into
 #                 ~/.local/obsidian (no sudo) with a ~/.local/bin/obsidian
 #                 launcher and a desktop entry
+#   - lazydocker  installs the lazydocker terminal UI for docker/compose into
+#                 ~/.local/bin, with an `lzd` alias in ~/.bashrc.d/lazydocker
 #
 # Needs gh on PATH (nvim.yml --tags gh) for work-repos and agent-cli cached
 # release lookups. No sudo.
@@ -51,3 +53,5 @@
       tags: [slack]
     - role: obsidian
       tags: [obsidian]
+    - role: lazydocker
+      tags: [lazydocker]

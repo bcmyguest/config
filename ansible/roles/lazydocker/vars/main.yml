@@ -1,0 +1,11 @@
+---
+# lazydocker ships a flat tarball (static binary + LICENSE + README), installed
+# straight into ~/.local/bin. Asset names embed the bare version:
+# lazydocker_<x.y.z>_Linux_<arch>.tar.gz
+lazydocker_bin: "{{ ansible_facts['env']['HOME'] }}/.local/bin/lazydocker"
+
+# Upstream names Linux assets x86_64/arm64; ansible_facts['architecture'] says
+# x86_64/aarch64, so map explicitly and fail loudly on anything else.
+lazydocker_arch_map:
+  x86_64: x86_64
+  aarch64: arm64

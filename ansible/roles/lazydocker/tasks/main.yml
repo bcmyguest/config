@@ -1,0 +1,104 @@
+# lazydocker — terminal UI for docker and docker compose
+# (jesseduffield/lazydocker). Single Go binary into ~/.local/bin, plus an
+# `lzd` alias in its own ~/.bashrc.d drop-in.
+#
+# No completion entry in shell-completions: lazydocker has no generator
+# (--help lists four flags and no subcommands at all).
+
+- name: lazydocker release arch is supported
+  ansible.builtin.assert:
+    that: ansible_facts['architecture'] in lazydocker_arch_map
+    fail_msg: >-
+      No lazydocker Linux tarball for {{ ansible_facts['architecture'] }}; upstream
+      publishes x86_64, arm64, armv6 and armv7 only.
+
+- name: get latest release of lazydocker (cached)
+  ansible.builtin.include_role:
+    name: github-release-cached
+  vars:
+    gh_user: jesseduffield
+    gh_repo: lazydocker
+
+- name: capture release tag
+  set_fact:
+    release_tag: ""
+  when: release is not defined
+
+- name: capture release tag from release
+  set_fact:
+    release_tag: "{{ release.tag }}"
+  when: release is defined
+
+- name: choose version to install
+  ansible.builtin.set_fact:
+    version_to_install: "{{ pinned_version | default(release_tag) }}"
+  check_mode: false
+
+- name: build target version
+  ansible.builtin.set_fact:
+    target_version: "{{ version_to_install | regex_replace('^v', '') }}"
+  check_mode: false
+
+- name: get current lazydocker version
+  ansible.builtin.command:
+    argv:
+      - "{{ lazydocker_bin }}"
+      - --version
+  register: current_version_raw
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: extract installed version
+  set_fact:
+    current_version: "{{ current_version_raw.stdout | default('') | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | default([''], true) | first }}"
+  check_mode: false
+
+- name: show lazydocker versions
+  ansible.builtin.debug:
+    msg: "installed={{ current_version | default('none') }} target={{ target_version }}"
+
+- name: ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+# Tarball also carries LICENSE/README.md — extract only the binary.
+- name: install lazydocker binary
+  ansible.builtin.unarchive:
+    src: "https://github.com/jesseduffield/lazydocker/releases/download/{{ version_to_install }}/lazydocker_{{ target_version }}_Linux_{{ lazydocker_arch_map[ansible_facts['architecture']] }}.tar.gz"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+    remote_src: true
+    include:
+      - lazydocker
+    mode: "0755"
+  when:
+    - not ansible_check_mode
+    - target_version != current_version
+    - version_to_install | default('') | length > 0
+
+# Its own drop-in rather than shell-completions' bashrc.d loop — that one only
+# sources *.bash and is retired entirely on a box where bash autoloads
+# completions, which would silently strand this alias (same reasoning as
+# work-repos' ~/.bashrc.d/git).
+- name: ensure ~/.bashrc.d exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.bashrc.d"
+    state: directory
+    mode: "0755"
+
+- name: write lzd alias to ~/.bashrc.d/lazydocker
+  ansible.builtin.copy:
+    dest: "{{ ansible_facts['env']['HOME'] }}/.bashrc.d/lazydocker"
+    mode: "0644"
+    content: |
+      alias lzd='lazydocker'
+
+- name: source ~/.bashrc.d/lazydocker from ~/.bashrc
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: lazydocker alias"
+    block: |
+      [ -r "$HOME/.bashrc.d/lazydocker" ] && . "$HOME/.bashrc.d/lazydocker"
