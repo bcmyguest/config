@@ -5,9 +5,15 @@
 #   3. move the AWQ weights into lemond's HF cache;
 #   4. point vllm.rocm_bin at the wrapper and register the model. lemond rewrites
 #      user_models.json on shutdown, so the JSON files are written with it stopped.
-- name: check the bundled vLLM against its wheel RECORDs
-  ansible.builtin.command:
-    argv: [python3, "{{ lemond_vllm_scr_src }}/verify_bundle.py", "{{ lemond_vllm_bundle }}/lib/python3.12/site-packages"]
+# lemond writes version.txt before extracting, so an interrupted install still lists
+# the backend as installed (2026-10-02: 6.3 GB of lib/, no bin/). The RECORD size
+# check alone passes such a partial bundle, since it skips missing files; require the
+# server binary and a working import too. Importing torch allocates no GPU memory.
+- name: check the bundled vLLM (server binary, import, wheel RECORD sizes)
+  ansible.builtin.shell: >-
+    test -x {{ lemond_vllm_bundle }}/bin/vllm-server
+    && timeout 300 {{ lemond_vllm_bundle }}/bin/python3 -c 'import torch, vllm'
+    && python3 {{ lemond_vllm_scr_src }}/verify_bundle.py {{ lemond_vllm_bundle }}/lib/python3.12/site-packages
   register: lemond_vllm_verify
   changed_when: false
   failed_when: false
@@ -52,8 +58,10 @@
       poll: 30
 
     - name: re-check the reinstalled bundle
-      ansible.builtin.command:
-        argv: [python3, "{{ lemond_vllm_scr_src }}/verify_bundle.py", "{{ lemond_vllm_bundle }}/lib/python3.12/site-packages"]
+      ansible.builtin.shell: >-
+        test -x {{ lemond_vllm_bundle }}/bin/vllm-server
+        && timeout 300 {{ lemond_vllm_bundle }}/bin/python3 -c 'import torch, vllm'
+        && python3 {{ lemond_vllm_scr_src }}/verify_bundle.py {{ lemond_vllm_bundle }}/lib/python3.12/site-packages
       changed_when: false
 
 # A plain copy plus a hand-written dist-info stays idempotent; `pip install --target`
