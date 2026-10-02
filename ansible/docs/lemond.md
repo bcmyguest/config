@@ -45,7 +45,7 @@ and configured by the `lemond` ansible role:
 2. **Silent bind failure.** lemond does not exit when it fails to bind, so systemd would
    consider the unit healthy while nothing serves. The role installs
    `/etc/systemd/system/lemond.service.d/override.conf` with an `ExecStartPost` curl
-   probe: a failed bind now fails the unit and `Restart=on-failure` retries.
+   probe that polls for up to 60 s: a failed bind now fails the unit and `Restart=always` retries.
 
 ## Day-to-day
 
