@@ -61,3 +61,25 @@ Pin a version by setting `lemond_pinned_version` (apt version string, e.g.
 
 For deeper debugging (model won't load, GPU faults, slow inference) there's a Claude
 skill: `/debug-lemonade`.
+
+## Suffix Cache Reuse (vllm recipe)
+
+`tasks/vllm_scr.yml` (tag `lemond-scr`, on by default via `lemond_vllm_scr_enabled`)
+wires the `vllm_scr` plugin from `~/clm/serving/vllm_scr` into lemond's `vllm` recipe:
+
+- Checks the bundled vLLM (`/var/cache/lemonade/bin/vllm/rocm`) against its wheel
+  RECORD sizes. A disk-full extraction on 2026-09-07 truncated 8 files (torch could
+  not import); on a mismatch the role deletes the bundle and runs
+  `lemonade backends install vllm:rocm` (about 9.6 GB).
+- Installs the plugin and its wrapper in `/opt/vllm-scr` (root:lemonade). It cannot
+  live under `/home`: the unit's `ProtectHome=yes` hides `/home` from lemond whatever
+  the file permissions.
+- Moves `QuantTrio/Qwen3.6-35B-A3B-AWQ` from `~/.cache/huggingface/hub` into
+  lemond's HF cache and chowns it to `lemonade`.
+- With lemond stopped (it rewrites `user_models.json` on shutdown): sets
+  `vllm.rocm_bin` to the wrapper and registers `user.Qwen3.6-35B-A3B-AWQ-SCR`
+  (ctx 131072). `.bak` files are kept beside each JSON file.
+
+`vllm.rocm_bin` applies to every vllm-recipe model. `KVREUSE_ENABLED=0` in lemond's
+environment turns SCR off without removing the wrapper. The model needs about 36 GB;
+load it only when that much GPU memory is free.

@@ -1,3 +1,28 @@
 # merged into /var/lib/lemonade/config.json (lemond reads host/port from there, not env)
 lemond_settings:
   host: 0.0.0.0
+
+# Suffix Cache Reuse (SCR) for lemond's vLLM recipe: the vllm_scr plugin from the
+# clm repo, served through a wrapper set as vllm.rocm_bin. tasks/vllm_scr.yml.
+lemond_vllm_scr_enabled: true
+lemond_vllm_scr_src: "/home/b/clm/serving/vllm_scr"
+# Outside /home: the lemond unit has ProtectHome=yes, so it cannot see /home at all.
+lemond_vllm_scr_dir: /opt/vllm-scr
+lemond_vllm_bundle: /var/cache/lemonade/bin/vllm/rocm
+lemond_hf_hub: /var/lib/lemonade/.cache/huggingface/hub
+# HF repo moved from the user's cache into lemond's (same filesystem, so mv is instant).
+lemond_vllm_scr_model_repo: QuantTrio/Qwen3.6-35B-A3B-AWQ
+lemond_vllm_scr_model_src_hub: "/home/b/.cache/huggingface/hub"
+lemond_vllm_scr_model_name: Qwen3.6-35B-A3B-AWQ-SCR
+lemond_vllm_scr_user_model:
+  checkpoints:
+    main: "{{ lemond_vllm_scr_model_repo }}"
+  labels: [coding, custom, reasoning, tool-calling]
+  recipe: vllm
+  size: 25.5
+  suggested: true
+lemond_vllm_scr_recipe_options:
+  ctx_size: 131072
+  vllm_backend: rocm
+  vllm_args: "--max-num-seqs 4"
+  merge_args: true

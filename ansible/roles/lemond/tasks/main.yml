@@ -139,3 +139,8 @@
     msg: "lemond {{ health.json.version }} up, model loaded: {{ health.json.model_loaded | default('none') }}"
   when:
     - health.json is defined
+
+- name: Suffix Cache Reuse for the vllm recipe
+  ansible.builtin.import_tasks: vllm_scr.yml
+  when: lemond_vllm_scr_enabled | bool
+  tags: [lemond-scr]

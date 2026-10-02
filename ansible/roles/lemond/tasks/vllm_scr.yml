@@ -1,0 +1,174 @@
+# Suffix Cache Reuse for lemond's vllm recipe. Four parts, in order:
+#   1. repair the bundled vLLM if any file is shorter than its wheel RECORD says
+#      (a disk-full extraction once left torch unimportable);
+#   2. install the vllm_scr plugin + wrapper under /opt (ProtectHome=yes hides /home);
+#   3. move the AWQ weights into lemond's HF cache;
+#   4. point vllm.rocm_bin at the wrapper and register the model. lemond rewrites
+#      user_models.json on shutdown, so the JSON files are written with it stopped.
+- name: check the bundled vLLM against its wheel RECORDs
+  ansible.builtin.command:
+    argv: [python3, "{{ lemond_vllm_scr_src }}/verify_bundle.py", "{{ lemond_vllm_bundle }}/lib/python3.12/site-packages"]
+  register: lemond_vllm_verify
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: reinstall the bundled vLLM
+  when: lemond_vllm_verify.rc != 0 and not ansible_check_mode
+  block:
+    - name: show why the bundle is being reinstalled
+      ansible.builtin.debug:
+        msg: "{{ lemond_vllm_verify.stdout_lines[-10:] + lemond_vllm_verify.stderr_lines[-5:] }}"
+
+    - name: stop lemond before removing the bundle
+      ansible.builtin.systemd_service:
+        name: lemond
+        state: stopped
+
+    - name: remove the broken vLLM bundle
+      ansible.builtin.file:
+        path: "{{ lemond_vllm_bundle }}"
+        state: absent
+
+    - name: start lemond
+      ansible.builtin.systemd_service:
+        name: lemond
+        state: started
+
+    - name: wait for lemond
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:13305/api/v1/health"
+      register: lemond_health_reinstall
+      retries: 10
+      delay: 3
+      until: lemond_health_reinstall.status == 200
+
+    # About 9.6 GB; the CLI talks to the running server.
+    - name: install the vllm:rocm backend
+      become: false
+      ansible.builtin.command:
+        argv: [lemonade, backends, install, "vllm:rocm"]
+      async: 7200
+      poll: 30
+
+    - name: re-check the reinstalled bundle
+      ansible.builtin.command:
+        argv: [python3, "{{ lemond_vllm_scr_src }}/verify_bundle.py", "{{ lemond_vllm_bundle }}/lib/python3.12/site-packages"]
+      changed_when: false
+
+# A plain copy plus a hand-written dist-info stays idempotent; `pip install --target`
+# would report changed on every run. The dist-info is what vLLM's entry-point lookup
+# (`vllm.general_plugins`) reads.
+- name: create plugin directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: lemonade
+    mode: "0750"
+  loop:
+    - "{{ lemond_vllm_scr_dir }}"
+    - "{{ lemond_vllm_scr_dir }}/bin"
+    - "{{ lemond_vllm_scr_dir }}/.site"
+    - "{{ lemond_vllm_scr_dir }}/.site/vllm_scr-0.1.0.dist-info"
+
+- name: install the vllm_scr package
+  ansible.builtin.copy:
+    src: "{{ lemond_vllm_scr_src }}/vllm_scr"
+    dest: "{{ lemond_vllm_scr_dir }}/.site/"
+    owner: root
+    group: lemonade
+    mode: u=rwX,g=rX,o=
+    directory_mode: "0750"
+
+- name: write vllm_scr dist-info
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ lemond_vllm_scr_dir }}/.site/vllm_scr-0.1.0.dist-info/{{ item.name }}"
+    owner: root
+    group: lemonade
+    mode: "0640"
+  loop:
+    - name: METADATA
+      content: "Metadata-Version: 2.1\nName: vllm-scr\nVersion: 0.1.0\n"
+    - name: entry_points.txt
+      content: "[vllm.general_plugins]\nscr = vllm_scr.plugin:register\n"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: install the vllm-server-scr wrapper
+  ansible.builtin.copy:
+    src: "{{ lemond_vllm_scr_src }}/bin/vllm-server-scr"
+    dest: "{{ lemond_vllm_scr_dir }}/bin/vllm-server-scr"
+    owner: root
+    group: lemonade
+    mode: "0750"
+
+- name: move the SCR model weights into lemond's HF cache
+  ansible.builtin.command:
+    argv:
+      - mv
+      - "{{ lemond_vllm_scr_model_src_hub }}/models--{{ lemond_vllm_scr_model_repo | replace('/', '--') }}"
+      - "{{ lemond_hf_hub }}/"
+    creates: "{{ lemond_hf_hub }}/models--{{ lemond_vllm_scr_model_repo | replace('/', '--') }}"
+    removes: "{{ lemond_vllm_scr_model_src_hub }}/models--{{ lemond_vllm_scr_model_repo | replace('/', '--') }}"
+
+- name: give lemonade ownership of the SCR model weights
+  ansible.builtin.file:
+    path: "{{ lemond_hf_hub }}/models--{{ lemond_vllm_scr_model_repo | replace('/', '--') }}"
+    state: directory
+    recurse: true
+    owner: lemonade
+    group: lemonade
+  when: not ansible_check_mode
+
+- name: read lemond JSON files
+  ansible.builtin.slurp:
+    src: "/var/lib/lemonade/{{ item }}"
+  loop: [config.json, user_models.json, recipe_options.json]
+  register: lemond_scr_json
+  failed_when: false
+
+- name: compute SCR settings for lemond JSON files
+  ansible.builtin.set_fact:
+    lemond_scr_current: "{{ lemond_scr_current | default({}) | combine({item.item: ((item.content | b64decode | from_json) if item.content is defined else {})}) }}"
+  loop: "{{ lemond_scr_json.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: merge SCR settings
+  ansible.builtin.set_fact:
+    lemond_scr_desired:
+      config.json: "{{ lemond_scr_current['config.json'] | combine({'vllm': {'rocm_bin': lemond_vllm_scr_dir + '/bin/vllm-server-scr'}}, recursive=true) }}"
+      user_models.json: "{{ lemond_scr_current['user_models.json'] | combine({lemond_vllm_scr_model_name: lemond_vllm_scr_user_model}) }}"
+      recipe_options.json: "{{ lemond_scr_current['recipe_options.json'] | combine({'user.' + lemond_vllm_scr_model_name: lemond_vllm_scr_recipe_options}) }}"
+
+- name: write SCR settings with lemond stopped
+  when: lemond_scr_desired != lemond_scr_current and not ansible_check_mode
+  block:
+    - name: stop lemond (it rewrites user_models.json on shutdown)
+      ansible.builtin.systemd_service:
+        name: lemond
+        state: stopped
+
+    - name: write lemond JSON files
+      ansible.builtin.copy:
+        content: "{{ lemond_scr_desired[item] | to_nice_json }}\n"
+        dest: "/var/lib/lemonade/{{ item }}"
+        owner: lemonade
+        group: lemonade
+        mode: "0640"
+        backup: true
+      loop: [config.json, user_models.json, recipe_options.json]
+
+    - name: start lemond
+      ansible.builtin.systemd_service:
+        name: lemond
+        state: started
+
+- name: show SCR status
+  ansible.builtin.debug:
+    msg: >-
+      vllm.rocm_bin -> {{ lemond_vllm_scr_dir }}/bin/vllm-server-scr; model
+      user.{{ lemond_vllm_scr_model_name }} registered. Nothing is loaded: load it
+      only when about 40 GB of GPU memory is free.
