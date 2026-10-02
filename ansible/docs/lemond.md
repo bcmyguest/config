@@ -84,7 +84,7 @@ wires the `vllm_scr` plugin from `~/clm/serving/vllm_scr` into lemond's `vllm` r
 environment turns SCR off without removing the wrapper. The model needs about 36 GB;
 load it only when that much GPU memory is free.
 
-Two traps found on 2026-10-02:
+Three traps found on 2026-10-02:
 - lemond writes `version.txt` before extracting, so an interrupted install still
   shows as `installed` in `lemonade backends`. Only the role's import check catches it.
 - With `vllm.rocm_bin` set, `lemonade backends install vllm:rocm` returns at once
