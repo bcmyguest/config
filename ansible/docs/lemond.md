@@ -67,7 +67,7 @@ skill: `/debug-lemonade`.
 `tasks/vllm_scr.yml` (tag `lemond-scr`, on by default via `lemond_vllm_scr_enabled`)
 wires the `vllm_scr` plugin from `~/clm/serving/vllm_scr` into lemond's `vllm` recipe:
 
-- Checks the bundled vLLM (`/var/cache/lemonade/bin/vllm/rocm`) against its wheel
+- Checks the bundled vLLM (`/var/cache/lemonade/bin/vllm/rocm`): `bin/vllm-server` exists, `import torch, vllm` works, and file sizes match the wheel
   RECORD sizes. A disk-full extraction on 2026-09-07 truncated 8 files (torch could
   not import); on a mismatch the role deletes the bundle and runs
   `lemonade backends install vllm:rocm` (about 9.6 GB).
@@ -83,3 +83,12 @@ wires the `vllm_scr` plugin from `~/clm/serving/vllm_scr` into lemond's `vllm` r
 `vllm.rocm_bin` applies to every vllm-recipe model. `KVREUSE_ENABLED=0` in lemond's
 environment turns SCR off without removing the wrapper. The model needs about 36 GB;
 load it only when that much GPU memory is free.
+
+Two traps found on 2026-10-02:
+- lemond writes `version.txt` before extracting, so an interrupted install still
+  shows as `installed` in `lemonade backends`. Only the role's import check catches it.
+- With `vllm.rocm_bin` set, `lemonade backends install vllm:rocm` returns at once
+  without downloading. The role unsets it for the reinstall.
+- 2026.40.0 moves `/var/lib/lemonade/.cache/lemonade` into `/var/cache/lemonade` on its
+  first start. The old `sleep 3` health check killed lemond mid-move and split the vLLM
+  bundle in two; the probe now polls for 60 s.

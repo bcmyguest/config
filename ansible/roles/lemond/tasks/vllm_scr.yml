@@ -36,6 +36,26 @@
         path: "{{ lemond_vllm_bundle }}"
         state: absent
 
+    # With vllm.rocm_bin set, lemond treats vllm as an external binary and
+    # `backends install` returns at once without downloading. Unset it for the
+    # install; the merge further down sets it again.
+    - name: read config.json for the reinstall
+      ansible.builtin.slurp:
+        src: /var/lib/lemonade/config.json
+      register: lemond_config_reinstall
+
+    - name: unset vllm.rocm_bin for the reinstall
+      ansible.builtin.copy:
+        content: >-
+          {{ (lemond_config_reinstall.content | b64decode | from_json)
+             | combine({'vllm': ((lemond_config_reinstall.content | b64decode | from_json).vllm | default({}))
+                                | dict2items | rejectattr('key', 'eq', 'rocm_bin') | items2dict})
+             | to_nice_json }}
+        dest: /var/lib/lemonade/config.json
+        owner: lemonade
+        group: lemonade
+        mode: "0640"
+
     - name: start lemond
       ansible.builtin.systemd_service:
         name: lemond
