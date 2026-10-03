@@ -28,9 +28,10 @@ lemond_vllm_scr_recipe_options:
   merge_args: true
 
 # Extra settings deep-merged into config.json by tasks/models.yml.
-# Two LLMs at once: the CLM coding model for OpenCode beside jev-debugger's Flash-Next.
 lemond_config_extra:
-  max_loaded_models: 2
+  # One LLM at a time. Two (ThinkingCoder + Flash-Next, both ctx_size 0 = full native
+  # context) overran the 90 GiB GTT on 2026-10-02 21:52 and hung the machine.
+  max_loaded_models: 1
   # Patched llama-server (tasks/llamacpp_scr.yml). Stock build for rollback:
   # /opt/llamacpp-unsloth-b10840/llama-server
   llamacpp:

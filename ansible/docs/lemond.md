@@ -98,7 +98,7 @@ Three traps found on 2026-10-02:
 `tasks/models.yml` (tags `lemond-models`, `lemond-scr`) merges `lemond_config_extra`,
 `lemond_user_models` and `lemond_recipe_options` from `vars/main.yml` into lemond's JSON
 files (with lemond stopped, only when they differ), then `lemonade pull`s
-`lemond_pull_models`. `max_loaded_models: 2` lets two LLMs stay loaded at once.
+`lemond_pull_models`. `max_loaded_models: 1`: two full-context LLMs overran the 90 GiB GTT and hung the machine (2026-10-02).
 
 llama.cpp's `--cache-reuse` (suffix reuse for CLM edits) is off for recurrent/hybrid
 models, which covers both Qwen3.6 (`qwen35moe`) and Qwen3.8 Flash-Next (`qwen4exp`): "cache_reuse
