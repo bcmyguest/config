@@ -144,3 +144,7 @@
   ansible.builtin.import_tasks: vllm_scr.yml
   when: lemond_vllm_scr_enabled | bool
   tags: [lemond-scr]
+
+- name: model registrations
+  ansible.builtin.import_tasks: models.yml
+  tags: [lemond-models, lemond-scr]

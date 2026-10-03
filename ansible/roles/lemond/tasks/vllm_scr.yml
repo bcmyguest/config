@@ -3,8 +3,7 @@
 #      (a disk-full extraction once left torch unimportable);
 #   2. install the vllm_scr plugin + wrapper under /opt (ProtectHome=yes hides /home);
 #   3. move the AWQ weights into lemond's HF cache;
-#   4. point vllm.rocm_bin at the wrapper and register the model. lemond rewrites
-#      user_models.json on shutdown, so the JSON files are written with it stopped.
+#   4. tasks/models.yml points vllm.rocm_bin at the wrapper and registers the model.
 # lemond writes version.txt before extracting, so an interrupted install still lists
 # the backend as installed (2026-10-02: 6.3 GB of lib/, no bin/). The RECORD size
 # check alone passes such a partial bundle, since it skips missing files; require the
@@ -151,50 +150,6 @@
     owner: lemonade
     group: lemonade
   when: not ansible_check_mode
-
-- name: read lemond JSON files
-  ansible.builtin.slurp:
-    src: "/var/lib/lemonade/{{ item }}"
-  loop: [config.json, user_models.json, recipe_options.json]
-  register: lemond_scr_json
-  failed_when: false
-
-- name: compute SCR settings for lemond JSON files
-  ansible.builtin.set_fact:
-    lemond_scr_current: "{{ lemond_scr_current | default({}) | combine({item.item: ((item.content | b64decode | from_json) if item.content is defined else {})}) }}"
-  loop: "{{ lemond_scr_json.results }}"
-  loop_control:
-    label: "{{ item.item }}"
-
-- name: merge SCR settings
-  ansible.builtin.set_fact:
-    lemond_scr_desired:
-      config.json: "{{ lemond_scr_current['config.json'] | combine({'vllm': {'rocm_bin': lemond_vllm_scr_dir + '/bin/vllm-server-scr'}}, recursive=true) }}"
-      user_models.json: "{{ lemond_scr_current['user_models.json'] | combine({lemond_vllm_scr_model_name: lemond_vllm_scr_user_model}) }}"
-      recipe_options.json: "{{ lemond_scr_current['recipe_options.json'] | combine({'user.' + lemond_vllm_scr_model_name: lemond_vllm_scr_recipe_options}) }}"
-
-- name: write SCR settings with lemond stopped
-  when: lemond_scr_desired != lemond_scr_current and not ansible_check_mode
-  block:
-    - name: stop lemond (it rewrites user_models.json on shutdown)
-      ansible.builtin.systemd_service:
-        name: lemond
-        state: stopped
-
-    - name: write lemond JSON files
-      ansible.builtin.copy:
-        content: "{{ lemond_scr_desired[item] | to_nice_json }}\n"
-        dest: "/var/lib/lemonade/{{ item }}"
-        owner: lemonade
-        group: lemonade
-        mode: "0640"
-        backup: true
-      loop: [config.json, user_models.json, recipe_options.json]
-
-    - name: start lemond
-      ansible.builtin.systemd_service:
-        name: lemond
-        state: started
 
 - name: show SCR status
   ansible.builtin.debug:

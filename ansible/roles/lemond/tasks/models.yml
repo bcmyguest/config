@@ -1,0 +1,78 @@
+# Model registrations and lemond settings that live in lemond's JSON files:
+# config.json (deep-merged), user_models.json and recipe_options.json (per-model
+# keys). lemond rewrites user_models.json on shutdown, so these are written with
+# it stopped, and only when something differs.
+- name: collect model registrations
+  ansible.builtin.set_fact:
+    lemond_models_config: >-
+      {{ lemond_config_extra
+         | combine({'vllm': {'rocm_bin': lemond_vllm_scr_dir + '/bin/vllm-server-scr'}} if lemond_vllm_scr_enabled | bool else {}, recursive=true) }}
+    lemond_models_user: >-
+      {{ lemond_user_models
+         | combine({lemond_vllm_scr_model_name: lemond_vllm_scr_user_model} if lemond_vllm_scr_enabled | bool else {}) }}
+    lemond_models_recipe: >-
+      {{ lemond_recipe_options
+         | combine({'user.' + lemond_vllm_scr_model_name: lemond_vllm_scr_recipe_options} if lemond_vllm_scr_enabled | bool else {}) }}
+
+- name: read lemond JSON files
+  ansible.builtin.slurp:
+    src: "/var/lib/lemonade/{{ item }}"
+  loop: [config.json, user_models.json, recipe_options.json]
+  register: lemond_models_json
+  failed_when: false
+
+- name: parse lemond JSON files
+  ansible.builtin.set_fact:
+    lemond_models_current: "{{ lemond_models_current | default({}) | combine({item.item: ((item.content | b64decode | from_json) if item.content is defined else {})}) }}"
+  loop: "{{ lemond_models_json.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: merge model registrations
+  ansible.builtin.set_fact:
+    lemond_models_desired:
+      config.json: "{{ lemond_models_current['config.json'] | combine(lemond_models_config, recursive=true) }}"
+      user_models.json: "{{ lemond_models_current['user_models.json'] | combine(lemond_models_user) }}"
+      recipe_options.json: "{{ lemond_models_current['recipe_options.json'] | combine(lemond_models_recipe) }}"
+
+- name: write model registrations with lemond stopped
+  when: lemond_models_desired != lemond_models_current and not ansible_check_mode
+  block:
+    - name: stop lemond (it rewrites user_models.json on shutdown)
+      ansible.builtin.systemd_service:
+        name: lemond
+        state: stopped
+
+    - name: write lemond JSON files
+      ansible.builtin.copy:
+        content: "{{ lemond_models_desired[item] | to_nice_json }}\n"
+        dest: "/var/lib/lemonade/{{ item }}"
+        owner: lemonade
+        group: lemonade
+        mode: "0640"
+        backup: true
+      loop: [config.json, user_models.json, recipe_options.json]
+
+    - name: start lemond
+      ansible.builtin.systemd_service:
+        name: lemond
+        state: started
+
+    - name: wait for lemond
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:13305/api/v1/health"
+      register: lemond_models_health
+      retries: 20
+      delay: 3
+      until: lemond_models_health.status == 200
+
+# Downloads only; nothing is loaded. lemond pulls into its own HF cache.
+- name: download registered models
+  become: false
+  ansible.builtin.command:
+    argv: [lemonade, pull, "user.{{ item }}"]
+  loop: "{{ lemond_pull_models }}"
+  async: 7200
+  poll: 30
+  changed_when: false
+  when: not ansible_check_mode

@@ -92,3 +92,16 @@ Three traps found on 2026-10-02:
 - 2026.40.0 moves `/var/lib/lemonade/.cache/lemonade` into `/var/cache/lemonade` on its
   first start. The old `sleep 3` health check killed lemond mid-move and split the vLLM
   bundle in two; the probe now polls for 60 s.
+
+## CLM model with llama.cpp cache reuse
+
+`tasks/models.yml` (tags `lemond-models`, `lemond-scr`) merges `lemond_config_extra`,
+`lemond_user_models` and `lemond_recipe_options` from `vars/main.yml` into lemond's JSON
+files (with lemond stopped, only when they differ), then `lemonade pull`s
+`lemond_pull_models`. It registers `user.Qwen3-Coder-30B-A3B-CLM` for OpenCode's CLM
+plugin, with `--cache-reuse 256`: llama.cpp shifts the KV of chunks that survive a
+CLM edit instead of re-prefilling them. llama.cpp disables cache reuse for
+recurrent/hybrid models (Qwen3.6 `qwen35moe`, Qwen3.8 `qwen4exp`: "cache_reuse is not
+supported by this context") and whenever an mmproj is loaded, so the CLM model has to be
+pure-attention and text-only. `max_loaded_models: 2` keeps it loaded beside
+jev-debugger's Flash-Next.
