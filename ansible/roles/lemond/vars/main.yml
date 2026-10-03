@@ -32,24 +32,7 @@ lemond_vllm_scr_recipe_options:
 lemond_config_extra:
   max_loaded_models: 2
 
-# CLM + suffix reuse on llama.cpp. --cache-reuse shifts the KV of chunks that survive
-# a mid-prompt edit (CLM compactions) instead of re-prefilling them. llama.cpp turns
-# it off for recurrent/hybrid models (Qwen3.6 qwen35moe, Qwen3.8 qwen4exp) and
-# whenever an mmproj is loaded, so this needs a pure-attention text-only model.
-lemond_user_models:
-  Qwen3-Coder-30B-A3B-CLM:
-    checkpoints:
-      main: unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf
-    labels: [coding, custom, tool-calling]
-    recipe: llamacpp
-    size: 18.6
-    suggested: true
-lemond_recipe_options:
-  user.Qwen3-Coder-30B-A3B-CLM:
-    ctx_size: 131072
-    llamacpp_backend: vulkan
-    # Qwen3-Coder's recommended sampling.
-    llamacpp_args: "--cache-reuse 256 --temp 0.7 --top-p 0.8 --top-k 20 --repeat-penalty 1.05"
-    merge_args: true
-lemond_pull_models:
-  - Qwen3-Coder-30B-A3B-CLM
+# Models registered by tasks/models.yml (name -> user_models entry / recipe options).
+lemond_user_models: {}
+lemond_recipe_options: {}
+lemond_pull_models: []
