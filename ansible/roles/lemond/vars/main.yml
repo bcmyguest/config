@@ -34,8 +34,11 @@ lemond_config_extra:
   max_loaded_models: 1
   # Patched llama-server (tasks/llamacpp_scr.yml). Stock build for rollback:
   # /opt/llamacpp-unsloth-b10840/llama-server
+  # Stock build: the patched one (lemond_llamacpp_scr_dir) crashed under jev-debugger's
+  # load on 2026-10-02 23:21 (qsa assert after a forward span move). Patched:
+  # "{{ lemond_llamacpp_scr_dir }}/llama-server"
   llamacpp:
-    vulkan_bin: "{{ lemond_llamacpp_scr_dir }}/llama-server"
+    vulkan_bin: /opt/llamacpp-unsloth-b10840/llama-server
 
 lemond_llamacpp_scr_src: /home/b/clm/llamacpp/build/bin/llama-server
 lemond_llamacpp_scr_dir: /opt/llamacpp-scr-b10840
@@ -49,7 +52,9 @@ lemond_recipe_options:
   user.Qwen3.8-Flash-Next-GGUF-UD-IQ4_XS:
     ctx_size: 0
     llamacpp_backend: vulkan
-    llamacpp_args: "--cache-reuse 256 --cache-reuse-hybrid 16"
+    # Rolled back with the stock build (it rejects --cache-reuse-hybrid):
+    #   "--cache-reuse 256 --cache-reuse-hybrid 16"
+    llamacpp_args: ""
     merge_args: true
   user.Qwen3.6-35B-A3B-ThinkingCoder:
     ctx_size: 0
@@ -57,6 +62,5 @@ lemond_recipe_options:
     llamacpp_args: >-
       --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.00 --presence-penalty 0 --repeat-penalty 1.0
       --chat-template-kwargs '{"preserve_thinking": true}' -b 1024 -ub 256
-      --cache-reuse 256 --cache-reuse-hybrid 16
     merge_args: true
 lemond_pull_models: []
