@@ -1,0 +1,30 @@
+# Patched llama-server for lemond's llamacpp recipe: --cache-reuse on hybrid
+# recurrent models (Qwen3.6 qwen35moe, Qwen3.8 qwen4exp) via SCR's state fork.
+# Built in ~/clm/llamacpp (build.sh); installed under /opt because the lemond unit
+# has ProtectHome=yes. Off unless a model passes --cache-reuse-hybrid, so other
+# llamacpp models run as on the stock build.
+- name: check the patched llama-server build exists
+  ansible.builtin.stat:
+    path: "{{ lemond_llamacpp_scr_src }}"
+  register: lemond_llamacpp_scr_build
+
+- name: patched llama-server must be built first
+  ansible.builtin.assert:
+    that: lemond_llamacpp_scr_build.stat.exists
+    fail_msg: "{{ lemond_llamacpp_scr_src }} is missing: run ~/clm/llamacpp/build.sh first."
+
+- name: create patched llama-server directory
+  ansible.builtin.file:
+    path: "{{ lemond_llamacpp_scr_dir }}"
+    state: directory
+    owner: root
+    group: lemonade
+    mode: "0750"
+
+- name: install patched llama-server
+  ansible.builtin.copy:
+    src: "{{ lemond_llamacpp_scr_src }}"
+    dest: "{{ lemond_llamacpp_scr_dir }}/llama-server"
+    owner: root
+    group: lemonade
+    mode: "0750"

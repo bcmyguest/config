@@ -145,6 +145,10 @@
   when: lemond_vllm_scr_enabled | bool
   tags: [lemond-scr]
 
+- name: patched llama-server (hybrid cache reuse)
+  ansible.builtin.import_tasks: llamacpp_scr.yml
+  tags: [lemond-models, lemond-scr]
+
 - name: model registrations
   ansible.builtin.import_tasks: models.yml
   tags: [lemond-models, lemond-scr]

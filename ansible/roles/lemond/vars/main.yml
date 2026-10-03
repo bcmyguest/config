@@ -31,8 +31,31 @@ lemond_vllm_scr_recipe_options:
 # Two LLMs at once: the CLM coding model for OpenCode beside jev-debugger's Flash-Next.
 lemond_config_extra:
   max_loaded_models: 2
+  # Patched llama-server (tasks/llamacpp_scr.yml). Stock build for rollback:
+  # /opt/llamacpp-unsloth-b10840/llama-server
+  llamacpp:
+    vulkan_bin: "{{ lemond_llamacpp_scr_dir }}/llama-server"
+
+lemond_llamacpp_scr_src: /home/b/clm/llamacpp/build/bin/llama-server
+lemond_llamacpp_scr_dir: /opt/llamacpp-scr-b10840
 
 # Models registered by tasks/models.yml (name -> user_models entry / recipe options).
 lemond_user_models: {}
-lemond_recipe_options: {}
+# Suffix reuse for CLM edits: --cache-reuse N reuses cached chunks of N+ tokens that
+# survive an edit; --cache-reuse-hybrid M allows it on hybrid models and prefills the
+# last M tokens of each reused span. Existing args kept as they were.
+lemond_recipe_options:
+  user.Qwen3.8-Flash-Next-GGUF-UD-IQ4_XS:
+    ctx_size: 0
+    llamacpp_backend: vulkan
+    llamacpp_args: "--cache-reuse 256 --cache-reuse-hybrid 16"
+    merge_args: true
+  user.Qwen3.6-35B-A3B-ThinkingCoder:
+    ctx_size: 0
+    llamacpp_backend: vulkan
+    llamacpp_args: >-
+      --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.00 --presence-penalty 0 --repeat-penalty 1.0
+      --chat-template-kwargs '{"preserve_thinking": true}' -b 1024 -ub 256
+      --cache-reuse 256 --cache-reuse-hybrid 16
+    merge_args: true
 lemond_pull_models: []

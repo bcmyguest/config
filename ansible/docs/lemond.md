@@ -103,3 +103,15 @@ files (with lemond stopped, only when they differ), then `lemonade pull`s
 llama.cpp's `--cache-reuse` (suffix reuse for CLM edits) is off for recurrent/hybrid
 models, which covers both Qwen3.6 (`qwen35moe`) and Qwen3.8 Flash-Next (`qwen4exp`): "cache_reuse
 is not supported by this context". It is also off whenever an mmproj is loaded.
+
+## Patched llama-server (hybrid cache reuse)
+
+`tasks/llamacpp_scr.yml` installs `~/clm/llamacpp/build/bin/llama-server` (b10840 mix
+build plus `scr-hybrid-cache-reuse.patch`) to `/opt/llamacpp-scr-b10840/` and
+`lemond_config_extra` points `llamacpp.vulkan_bin` at it. The patch adds
+`--cache-reuse-hybrid N`: `--cache-reuse` then works on hybrid recurrent models
+(attention KV shifted, recurrent state forked from the previous request's end). Without
+the flag a model runs exactly as on the stock build. Flash-Next and ThinkingCoder get
+`--cache-reuse 256 --cache-reuse-hybrid 16` in `lemond_recipe_options`. Look for `scr:`
+lines in `journalctl -u lemond`. Rollback: set `vulkan_bin` back to
+`/opt/llamacpp-unsloth-b10840/llama-server`.
