@@ -14,6 +14,8 @@
 #   - llama-cpp   llama.cpp server build
 #   - lemond      lemonade-server (OpenAI-compatible local LLM serving)
 #   - openwebui   chat frontend for lemond/ollama (docker container)
+#   - hindsight   local coding-agent memory: compose stack in ~/personal-memory
+#                 and the coding-agent plugin. Runs as you, no sudo
 #   - grepai      local semantic code search for coding agents; needs ollama
 #                 on PATH (not installed by ansible — see README), and pulls
 #                 the nomic-embed-text embedding model
@@ -59,6 +61,8 @@
     - role: openwebui
       tags: [openwebui]
       become: true
+    - role: hindsight
+      tags: [hindsight]
     - role: grepai
       tags: [grepai]
     # Last, same as in nvim.yml: it regenerates shell completions from the

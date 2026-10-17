@@ -1,0 +1,10 @@
+---
+# Hindsight: local memory for coding agents. The stack lives in its own private repo.
+hindsight_repo_url: git@github.com:bcmyguest/personal-memory.git
+hindsight_repo_dir: "{{ ansible_env.HOME }}/personal-memory"
+hindsight_config_dir: "{{ ansible_env.HOME }}/.config/hindsight"
+
+# lemond (default; same playbook) or ollama. Selects config/litellm.<backend>.yaml.
+hindsight_memory_backend: lemond
+# Chat model the ollama route uses (config/litellm.ollama.yaml). Pulled only for backend=ollama.
+hindsight_ollama_model: gemma4:e2b

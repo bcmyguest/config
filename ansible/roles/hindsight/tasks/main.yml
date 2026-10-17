@@ -1,0 +1,172 @@
+# Hindsight: the local coding-agent memory stack from ~/personal-memory (docker compose:
+# litellm, hindsight, indexer). Setup steps are documented in that repo's README.
+#
+# Runs as the invoking user, no become: the user is in the docker group, and the
+# stack's config lives under $HOME. Compose and setup.sh need no root.
+#
+# Every step that writes is skipped under --check, so a check run shows the plan only.
+
+- name: check the memory repo for local changes
+  ansible.builtin.command:
+    cmd: "git -C {{ hindsight_repo_dir }} status --porcelain --untracked-files=no"
+  register: hindsight_repo_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Clone when missing; fast-forward when the tree is clean. A dirty tree is reported
+# and left alone, so local edits are never overwritten.
+- name: clone or update the memory repo
+  ansible.builtin.git:
+    repo: "{{ hindsight_repo_url }}"
+    dest: "{{ hindsight_repo_dir }}"
+    version: main
+    update: true
+    force: false
+  when: hindsight_repo_status.rc != 0 or hindsight_repo_status.stdout == ''
+
+- name: report a memory repo with local changes (not updated)
+  ansible.builtin.debug:
+    msg: "{{ hindsight_repo_dir }} has local changes; not updated. Commit or stash, then rerun."
+  when: hindsight_repo_status.rc == 0 and hindsight_repo_status.stdout != ''
+
+- name: ensure the hindsight config directory (mode 700)
+  ansible.builtin.file:
+    path: "{{ hindsight_config_dir }}"
+    state: directory
+    mode: "0700"
+
+# force: false, so an existing hindsight.env (which holds secrets) is never overwritten.
+- name: create hindsight.env from the example if missing
+  ansible.builtin.copy:
+    src: "{{ hindsight_repo_dir }}/config/hindsight.env.example"
+    dest: "{{ hindsight_config_dir }}/hindsight.env"
+    remote_src: true
+    force: false
+    mode: "0600"
+
+- name: stat the compose .env before setup
+  ansible.builtin.stat:
+    path: "{{ hindsight_repo_dir }}/.env"
+    checksum_algorithm: sha256
+  register: hindsight_env_before
+  check_mode: false
+
+- name: check whether hindsight.env calls the LiteLLM proxy
+  ansible.builtin.command:
+    cmd: "grep -q '^HINDSIGHT_API_LLM_BASE_URL=http://litellm:4000/' {{ hindsight_config_dir }}/hindsight.env"
+  register: hindsight_litellm_route
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# setup.sh writes .env (HOST_UID, HOST_GID, LITELLM_CONFIG), creates litellm.env with a
+# random master key only if missing, and regenerates compose.override.yaml. Its .env
+# content is stable across runs. --migrate-env runs only for a hindsight.env that still
+# calls the model server directly; it backs the file up first.
+- name: run setup.sh (writes .env, litellm.env, compose.override.yaml)
+  ansible.builtin.command:
+    cmd: "bash scripts/setup.sh{{ ' --migrate-env' if hindsight_litellm_route.rc != 0 else '' }}"
+    chdir: "{{ hindsight_repo_dir }}"
+  environment:
+    MEMORY_BACKEND: "{{ hindsight_memory_backend }}"
+  register: hindsight_setup
+  changed_when: >-
+    'created ' in hindsight_setup.stdout or
+    'migrated ' in hindsight_setup.stdout
+  when: not ansible_check_mode
+
+- name: stat the compose .env after setup
+  ansible.builtin.stat:
+    path: "{{ hindsight_repo_dir }}/.env"
+    checksum_algorithm: sha256
+  register: hindsight_env_after
+  check_mode: false
+
+- name: report a changed compose .env
+  ansible.builtin.debug:
+    msg: "{{ hindsight_repo_dir }}/.env was rewritten (LITELLM_CONFIG or HOST_UID/GID changed)."
+  when:
+    - not ansible_check_mode
+    - hindsight_env_before.stat.checksum | default('') != hindsight_env_after.stat.checksum | default('')
+
+- name: list ollama models
+  ansible.builtin.command:
+    cmd: ollama list
+  register: hindsight_ollama_list
+  changed_when: false
+  check_mode: false
+  when: hindsight_memory_backend == 'ollama'
+
+- name: pull the ollama chat model for the memory proxy
+  ansible.builtin.command:
+    cmd: "ollama pull {{ hindsight_ollama_model }}"
+  when:
+    - hindsight_memory_backend == 'ollama'
+    - not ansible_check_mode
+    - hindsight_ollama_model not in hindsight_ollama_list.stdout
+
+# --build rebuilds only when sources changed (layer cache). Compose writes progress to
+# stderr, so both streams are checked. "Running" means no change.
+- name: start the compose stack
+  ansible.builtin.command:
+    cmd: docker compose up -d --build
+    chdir: "{{ hindsight_repo_dir }}"
+  register: hindsight_compose
+  changed_when: >-
+    'Started' in (hindsight_compose.stdout ~ hindsight_compose.stderr) or
+    'Recreated' in (hindsight_compose.stdout ~ hindsight_compose.stderr) or
+    'Created' in (hindsight_compose.stdout ~ hindsight_compose.stderr)
+  when: not ansible_check_mode
+
+- name: wait for the hindsight API
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8888/health
+    status_code: 200
+  register: hindsight_health
+  failed_when: false
+  until: hindsight_health.status | default(0) == 200
+  retries: 30
+  delay: 5
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: fail when the hindsight API does not answer
+  ansible.builtin.assert:
+    that: hindsight_health.status | default(0) == 200
+    fail_msg: "hindsight API did not return 200 from http://127.0.0.1:8888/health. Check: docker compose -f {{ hindsight_repo_dir }}/compose.yaml logs hindsight"
+    quiet: true
+  when: not ansible_check_mode
+
+# The plugin installs into ~/.hindsight; the creates guard skips it once built.
+# mise's shims put its node/npx first on PATH.
+- name: install the coding-agent plugin (once)
+  ansible.builtin.command:
+    cmd: npx --yes @vectorize-io/hindsight-coding-agents install claude-code codex opencode
+    creates: "{{ ansible_env.HOME }}/.hindsight/coding-agents/dist/mcp-server.js"
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/share/mise/shims:{{ ansible_env.PATH }}"
+
+- name: ensure the ~/.hindsight directory
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.hindsight"
+    state: directory
+
+- name: stat the coding-agent config path
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.hindsight/coding-agent.json"
+  register: hindsight_plugin_config
+
+# Link the repo copy. A regular file here is left alone (the plugin may have written it).
+- name: link the coding-agent config to the repo copy
+  ansible.builtin.file:
+    src: "{{ hindsight_repo_dir }}/config/coding-agent.json"
+    dest: "{{ ansible_env.HOME }}/.hindsight/coding-agent.json"
+    state: link
+    force: false
+  when: not hindsight_plugin_config.stat.exists or hindsight_plugin_config.stat.islnk
+
+- name: note a regular coding-agent.json that the role leaves alone
+  ansible.builtin.debug:
+    msg: "{{ ansible_env.HOME }}/.hindsight/coding-agent.json is a regular file, not a symlink; left unchanged. Replace it with a link to {{ hindsight_repo_dir }}/config/coding-agent.json to use the repo copy."
+  when: hindsight_plugin_config.stat.exists and not hindsight_plugin_config.stat.islnk

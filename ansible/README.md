@@ -284,6 +284,15 @@ names a tag with no binaries on it. Pin a build with
 ollama is not installed by ansible; drop `../ollama.service.d/override.conf` into
 the ollama unit by hand if you run it.
 
+**hindsight** runs the local coding-agent memory stack from the private repo
+`~/personal-memory` (`--tags hindsight`, no sudo; you must be in the `docker`
+group). It clones or updates the repo (skips a dirty tree), creates
+`~/.config/hindsight/hindsight.env` only if missing, runs `scripts/setup.sh`,
+then `docker compose up -d --build`, and waits for `127.0.0.1:8888/health`. Set
+`-e hindsight_memory_backend=ollama` to use Ollama, which also pulls
+`gemma4:e2b` (default `lemond`). The coding-agent plugin installs once via
+`npx`; its config links to the repo copy. Vars: `roles/hindsight/vars/main.yml`.
+
 lemond is installed by the `lemond` role (`--tags lemond`); full service docs in
 [docs/lemond.md](docs/lemond.md), ROCm/GPU notes in
 [docs/rocm-strix-halo.md](docs/rocm-strix-halo.md).
