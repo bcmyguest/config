@@ -10,3 +10,5 @@ If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is 
 <!-- CODEGRAPH_END -->
 
 @codegraph.md
+
+Local Hindsight memory for Claude Code, Codex, and OpenCode is documented in `docs/hindsight.md`; repository files remain authoritative.

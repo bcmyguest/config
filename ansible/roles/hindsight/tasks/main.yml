@@ -16,6 +16,29 @@
   failed_when: false
   check_mode: false
 
+# The memory repo is private and cloned over SSH only (HTTPS has no anonymous access).
+# Check the SSH key before the clone or fast-forward runs, so the failure names the fix.
+- name: check GitHub SSH access to the private memory repo
+  ansible.builtin.command:
+    argv: [git, ls-remote, "{{ hindsight_repo_url }}", HEAD]
+  environment:
+    GIT_SSH_COMMAND: "ssh -o BatchMode=yes"
+  register: hindsight_repo_access
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: hindsight_repo_status.rc != 0 or hindsight_repo_status.stdout == ''
+
+- name: assert GitHub SSH access before cloning or updating the memory repo
+  ansible.builtin.assert:
+    that: hindsight_repo_access.rc == 0
+    fail_msg: >-
+      Cannot reach {{ hindsight_repo_url }} over SSH. The memory repo is private and
+      HTTPS is not available, so add a GitHub SSH key for this user (or run gh auth login
+      and load the key into ssh-agent), then rerun.
+    quiet: true
+  when: hindsight_repo_status.rc != 0 or hindsight_repo_status.stdout == ''
+
 # Clone when missing; fast-forward when the tree is clean. A dirty tree is reported
 # and left alone, so local edits are never overwritten.
 - name: clone or update the memory repo
@@ -52,21 +75,85 @@
     state: directory
     mode: "0700"
 
+# Model pulls for the memory proxy. The names come from the LiteLLM config this run uses:
+# the effective override the wizard writes, else the shipped config for the backend.
+# lemond (default) pulls through lemonade; Ollama is opt-in (backend=ollama) only.
+- name: choose the LiteLLM config the model pulls read
+  ansible.builtin.set_fact:
+    hindsight_litellm_src: >-
+      {{ hindsight_config_dir ~ '/litellm.yaml'
+         if (hindsight_config_dir ~ '/litellm.yaml') is file
+         else hindsight_repo_dir ~ '/config/litellm.' ~ hindsight_memory_backend ~ '.yaml' }}
+
+- name: read the LiteLLM config
+  ansible.builtin.slurp:
+    src: "{{ hindsight_litellm_src }}"
+  register: hindsight_litellm_raw
+  check_mode: false
+
+- name: collect the distinct model names the config references
+  ansible.builtin.set_fact:
+    hindsight_model_names: >-
+      {{ (hindsight_litellm_raw.content | b64decode | from_yaml).model_list
+         | map(attribute='litellm_params.model')
+         | map('regex_replace', '^(openai|ollama_chat)/', '')
+         | unique | list }}
+
+- name: query lemond for its models
+  ansible.builtin.uri:
+    url: "{{ hindsight_lemond_url }}/api/v1/models?show_all=true"
+    return_content: true
+    timeout: 15
+  register: hindsight_lemond_models
+  failed_when: false
+  changed_when: false
+  check_mode: false
+  when: hindsight_memory_backend == 'lemond'
+
+- name: fail when lemond is not answering
+  ansible.builtin.assert:
+    that: hindsight_lemond_models.status | default(0) == 200
+    fail_msg: "lemond is not answering on {{ hindsight_lemond_url }}. Start lemonade (lemond), then rerun. Models come from lemonade."
+    quiet: true
+  when: hindsight_memory_backend == 'lemond'
+
+- name: find the lemond models that are not downloaded
+  ansible.builtin.set_fact:
+    hindsight_lemond_missing: >-
+      {{ hindsight_model_names
+         | difference(hindsight_lemond_models.json.data | selectattr('downloaded') | map(attribute='id') | list) }}
+  when: hindsight_memory_backend == 'lemond'
+
+# Models lemond does not register come from the unsloth checkpoint (alias = the config name).
+- name: pull the missing lemond models
+  ansible.builtin.command:
+    argv: [lemonade, pull, "{{ hindsight_lemond_checkpoints[item] if item in hindsight_lemond_checkpoints else item }}"]
+  loop: "{{ hindsight_lemond_missing | default([]) }}"
+  when: hindsight_memory_backend == 'lemond' and not ansible_check_mode
+
 - name: list ollama models
   ansible.builtin.command:
-    cmd: ollama list
+    argv: [ollama, list]
   register: hindsight_ollama_list
   changed_when: false
+  failed_when: false
   check_mode: false
   when: hindsight_memory_backend == 'ollama'
 
-- name: pull the ollama chat model for the memory proxy
+- name: fail when ollama is not usable for backend=ollama
+  ansible.builtin.assert:
+    that: hindsight_ollama_list.rc == 0
+    fail_msg: "backend=ollama needs the ollama CLI and a running server (ollama list failed). Install or start Ollama, or use the default lemond backend."
+    quiet: true
+  when: hindsight_memory_backend == 'ollama'
+
+- name: pull the missing ollama models
   ansible.builtin.command:
-    cmd: "ollama pull {{ hindsight_ollama_model }}"
+    argv: [ollama, pull, "{{ item }}"]
+  loop: "{{ hindsight_model_names | difference(hindsight_ollama_list.stdout_lines[1:] | map('regex_replace', ' .*$', '') | list) }}"
   when:
     - hindsight_memory_backend == 'ollama'
     - not ansible_check_mode
-    - hindsight_ollama_model not in hindsight_ollama_list.stdout
 
 # Installs into ~/.hindsight; the creates guard skips it once built. It runs before the
 # wizard: the plugin may write coding-agent.json, and the wizard only links over a file it

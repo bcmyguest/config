@@ -7,3 +7,26 @@
     name: "{{ agent_pip_package }}{{ agent_pip_version }}"
     state: present
     extra_args: --break-system-packages
+
+# Wires each harness hooks, MCP, and the hindsight-coding-agent skill. Re-running `install`
+# is safe; `creates` skips once the skill is present. mise shims put node/npx first on PATH.
+- name: install hindsight coding-agent plugin for cursor-cli
+  ansible.builtin.command:
+    cmd: npx --yes @vectorize-io/hindsight-coding-agents install cursor-cli
+    creates: "{{ ansible_env.HOME }}/.cursor/skills/hindsight-coding-agent/SKILL.md"
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/share/mise/shims:{{ ansible_env.PATH }}"
+
+- name: install hindsight coding-agent plugin for claude-code
+  ansible.builtin.command:
+    cmd: npx --yes @vectorize-io/hindsight-coding-agents install claude-code
+    creates: "{{ ansible_env.HOME }}/.claude/skills/hindsight-coding-agent/SKILL.md"
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/share/mise/shims:{{ ansible_env.PATH }}"
+
+- name: install hindsight coding-agent plugin for codex
+  ansible.builtin.command:
+    cmd: npx --yes @vectorize-io/hindsight-coding-agents install codex
+    creates: "{{ ansible_env.HOME }}/.agents/skills/hindsight-coding-agent/SKILL.md"
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/share/mise/shims:{{ ansible_env.PATH }}"

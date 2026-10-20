@@ -13,9 +13,9 @@
 #                 and aliases each one in ~/.bashrc.d/git: `<repo>` cds into it
 #   - cursor      installs the Cursor editor (cursor.com) from the upstream
 #                 Linux tarball into ~/.local/bin/cursor
-#   - agent-cli   installs the Cursor Agent CLI from
-#                 civai-technologies/cursor-agent. Needs gh on PATH for cached
-#                 release lookups.
+#   - agent-cli   installs the Cursor Agent CLI (cursor-agent pip package) and
+#                 wires the Hindsight coding-agent plugin for cursor-cli,
+#                 claude-code, and codex (hooks, MCP, skill via npx).
 #   - zed-editor  installs the Zed editor (zed-industries/zed) — moved here so
 #                 it is opt-in rather than on the default nvim.yml path.
 #   - slack       unpacks the official Slack .deb into ~/.local/slack (no sudo)

@@ -9,6 +9,7 @@ colorscheme, treesitter, snacks, and the opencode/puppeteer integrations.
 Install nvim and its toolchain with [ansible](./ansible/README.md) (`nvim.yml`), or manually.
 The AI inference stack (docker, llama.cpp, lemond, Open WebUI) is separate — see
 `ai-inference.yml` in the same ansible setup. Old manual notes: [docs/machine-setup.md](./docs/machine-setup.md).
+Personal coding-agent memory and project indexing: Local Hindsight memory in ~/personal-memory (git repo, see its README.md).
 
 ## Structure
 
