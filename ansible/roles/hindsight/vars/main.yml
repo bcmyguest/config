@@ -1,14 +1,3 @@
 ---
-# Hindsight: local memory for coding agents. The stack lives in its own private repo.
 hindsight_repo_url: git@github.com:bcmyguest/personal-memory.git
 hindsight_repo_dir: "{{ ansible_env.HOME }}/personal-memory"
-hindsight_config_dir: "{{ ansible_env.HOME }}/.config/hindsight"
-
-# Model backend: lemond (default; models come from lemonade) or ollama (opt-in).
-# Selects config/litellm.<backend>.yaml. Ollama is pulled only when backend=ollama.
-hindsight_memory_backend: lemond
-hindsight_lemond_url: http://127.0.0.1:13305
-# Config names that lemond does not register, mapped to their unsloth GGUF checkpoint.
-hindsight_lemond_checkpoints:
-  Gemma-4-E2B-it-GGUF: "unsloth/gemma-4-E2B-it-GGUF:Q4_K_M"
-  gemma-4-E4B-it-GGUF-Q4_K_M: "unsloth/gemma-4-E4B-it-GGUF:Q4_K_M"

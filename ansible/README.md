@@ -284,14 +284,10 @@ names a tag with no binaries on it. Pin a build with
 ollama is not installed by ansible; drop `../ollama.service.d/override.conf` into
 the ollama unit by hand if you run it.
 
-**hindsight** runs the local coding-agent memory stack from the private repo
-`~/personal-memory` (`--tags hindsight`, no sudo; you must be in the `docker`
-group). It clones or updates the repo (skips a dirty tree), creates
-`~/.config/hindsight/hindsight.env` only if missing, runs `scripts/setup.sh`,
-then `docker compose up -d --build`, and waits for `127.0.0.1:8888/health`. Set
-`-e hindsight_memory_backend=ollama` to use Ollama, which also pulls
-`gemma4:e2b` (default `lemond`). The coding-agent plugin installs once via
-`npx`; its config links to the repo copy. Vars: `roles/hindsight/vars/main.yml`.
+**hindsight** clones or updates `~/personal-memory` (`--tags hindsight` on
+`ai-inference.yml` or `work.yml`; docker group, no sudo). Stack configuration is
+**not** in ansible — run **`~/personal-memory/setup`** (wizard). Per-machine
+defaults: `config/machine.env` in that repo. See [docs/hindsight.md](../docs/hindsight.md).
 
 lemond is installed by the `lemond` role (`--tags lemond`); full service docs in
 [docs/lemond.md](docs/lemond.md), ROCm/GPU notes in
@@ -329,7 +325,13 @@ Opt-in, not run by `nvim.yml`:
 
 ```
 ansible-playbook work.yml
+ansible-playbook work.yml --tags hindsight          # clone; then ./setup in personal-memory
+ansible-playbook work.yml --tags agent-cli,hindsight
 ```
+
+**hindsight** on `work.yml` only clones the repo; configure with
+`~/personal-memory/setup` and `config/machine.env`. See
+[docs/hindsight.md](../docs/hindsight.md).
 
 **gitconfig** applies the settings in `roles/gitconfig/vars/main.yml` with
 `git config --global` (`community.general.git_config`), not by templating the

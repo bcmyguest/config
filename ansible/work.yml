@@ -16,6 +16,8 @@
 #   - agent-cli   installs the Cursor Agent CLI (cursor-agent pip package) and
 #                 wires the Hindsight coding-agent plugin for cursor-cli,
 #                 claude-code, and codex (hooks, MCP, skill via npx).
+#   - hindsight   clones ~/personal-memory; stack setup is ./setup in that repo
+#                 (see config/machine.env.example). See docs/hindsight.md.
 #   - zed-editor  installs the Zed editor (zed-industries/zed) — moved here so
 #                 it is opt-in rather than on the default nvim.yml path.
 #   - slack       unpacks the official Slack .deb into ~/.local/slack (no sudo)
@@ -49,6 +51,8 @@
       tags: [cursor]
     - role: agent-cli
       tags: [agent-cli]
+    - role: hindsight
+      tags: [hindsight]
     - role: slack
       tags: [slack]
     - role: obsidian

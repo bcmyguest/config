@@ -1,12 +1,7 @@
 ---
-# Hindsight: the local coding-agent memory stack from ~/personal-memory (docker compose:
-# litellm, hindsight, indexer). The wizard (./setup in that repo) does the stack work:
-# env files, setup.sh, compose up, health wait, source index, coding-agent link.
-#
-# Runs as the invoking user, no become: the user is in the docker group, and the
-# stack's config lives under $HOME.
-#
-# Every step that writes is skipped under --check, so a check run shows the plan only.
+# Clone ~/personal-memory and ensure Docker works. All stack configuration — backend,
+# LiteLLM routes (including memory-reflect), indexing, compose — is the personal-memory
+# ./setup wizard. See ~/personal-memory/README.md and config/machine.env.example.
 
 - name: check the memory repo for local changes
   ansible.builtin.command:
@@ -16,8 +11,6 @@
   failed_when: false
   check_mode: false
 
-# The memory repo is private and cloned over SSH only (HTTPS has no anonymous access).
-# Check the SSH key before the clone or fast-forward runs, so the failure names the fix.
 - name: check GitHub SSH access to the private memory repo
   ansible.builtin.command:
     argv: [git, ls-remote, "{{ hindsight_repo_url }}", HEAD]
@@ -39,8 +32,6 @@
     quiet: true
   when: hindsight_repo_status.rc != 0 or hindsight_repo_status.stdout == ''
 
-# Clone when missing; fast-forward when the tree is clean. A dirty tree is reported
-# and left alone, so local edits are never overwritten.
 - name: clone or update the memory repo
   ansible.builtin.git:
     repo: "{{ hindsight_repo_url }}"
@@ -69,112 +60,11 @@
     fail_msg: "docker is not usable without sudo. Add your user to the docker group, log in again, then rerun."
     quiet: true
 
-- name: ensure the hindsight config directory (mode 700)
-  ansible.builtin.file:
-    path: "{{ hindsight_config_dir }}"
-    state: directory
-    mode: "0700"
-
-# Model pulls for the memory proxy. The names come from the LiteLLM config this run uses:
-# the effective override the wizard writes, else the shipped config for the backend.
-# lemond (default) pulls through lemonade; Ollama is opt-in (backend=ollama) only.
-- name: choose the LiteLLM config the model pulls read
-  ansible.builtin.set_fact:
-    hindsight_litellm_src: >-
-      {{ hindsight_config_dir ~ '/litellm.yaml'
-         if (hindsight_config_dir ~ '/litellm.yaml') is file
-         else hindsight_repo_dir ~ '/config/litellm.' ~ hindsight_memory_backend ~ '.yaml' }}
-
-- name: read the LiteLLM config
-  ansible.builtin.slurp:
-    src: "{{ hindsight_litellm_src }}"
-  register: hindsight_litellm_raw
-  check_mode: false
-
-- name: collect the distinct model names the config references
-  ansible.builtin.set_fact:
-    hindsight_model_names: >-
-      {{ (hindsight_litellm_raw.content | b64decode | from_yaml).model_list
-         | map(attribute='litellm_params.model')
-         | map('regex_replace', '^(openai|ollama_chat)/', '')
-         | unique | list }}
-
-- name: query lemond for its models
-  ansible.builtin.uri:
-    url: "{{ hindsight_lemond_url }}/api/v1/models?show_all=true"
-    return_content: true
-    timeout: 15
-  register: hindsight_lemond_models
-  failed_when: false
-  changed_when: false
-  check_mode: false
-  when: hindsight_memory_backend == 'lemond'
-
-- name: fail when lemond is not answering
-  ansible.builtin.assert:
-    that: hindsight_lemond_models.status | default(0) == 200
-    fail_msg: "lemond is not answering on {{ hindsight_lemond_url }}. Start lemonade (lemond), then rerun. Models come from lemonade."
-    quiet: true
-  when: hindsight_memory_backend == 'lemond'
-
-- name: find the lemond models that are not downloaded
-  ansible.builtin.set_fact:
-    hindsight_lemond_missing: >-
-      {{ hindsight_model_names
-         | difference(hindsight_lemond_models.json.data | selectattr('downloaded') | map(attribute='id') | list) }}
-  when: hindsight_memory_backend == 'lemond'
-
-# Models lemond does not register come from the unsloth checkpoint (alias = the config name).
-- name: pull the missing lemond models
+- name: delegate stack setup to the personal-memory wizard
   ansible.builtin.command:
-    argv: [lemonade, pull, "{{ hindsight_lemond_checkpoints[item] if item in hindsight_lemond_checkpoints else item }}"]
-  loop: "{{ hindsight_lemond_missing | default([]) }}"
-  when: hindsight_memory_backend == 'lemond' and not ansible_check_mode
-
-- name: list ollama models
-  ansible.builtin.command:
-    argv: [ollama, list]
-  register: hindsight_ollama_list
-  changed_when: false
-  failed_when: false
-  check_mode: false
-  when: hindsight_memory_backend == 'ollama'
-
-- name: fail when ollama is not usable for backend=ollama
-  ansible.builtin.assert:
-    that: hindsight_ollama_list.rc == 0
-    fail_msg: "backend=ollama needs the ollama CLI and a running server (ollama list failed). Install or start Ollama, or use the default lemond backend."
-    quiet: true
-  when: hindsight_memory_backend == 'ollama'
-
-- name: pull the missing ollama models
-  ansible.builtin.command:
-    argv: [ollama, pull, "{{ item }}"]
-  loop: "{{ hindsight_model_names | difference(hindsight_ollama_list.stdout_lines[1:] | map('regex_replace', ' .*$', '') | list) }}"
-  when:
-    - hindsight_memory_backend == 'ollama'
-    - not ansible_check_mode
-
-# Installs into ~/.hindsight; the creates guard skips it once built. It runs before the
-# wizard: the plugin may write coding-agent.json, and the wizard only links over a file it
-# can replace with consent. mise's shims put its node/npx first on PATH.
-- name: install the coding-agent plugin (once)
-  ansible.builtin.command:
-    cmd: npx --yes @vectorize-io/hindsight-coding-agents install claude-code codex opencode
-    creates: "{{ ansible_env.HOME }}/.hindsight/coding-agents/dist/mcp-server.js"
-  environment:
-    PATH: "{{ ansible_env.HOME }}/.local/share/mise/shims:{{ ansible_env.PATH }}"
-
-# --yes takes every default: keeps existing env files, secrets, and index.yml; links the
-# coding-agent config; skips the smoke test (the wizard's health wait still fails the run).
-# PM_BACKEND selects the model backend (lemond or ollama). The last line reports
-# "wizard: changed=N"; N=0 means nothing was altered.
-- name: run the memory wizard non-interactively (./setup --yes --no-smoke)
-  ansible.builtin.command:
-    cmd: ./setup --yes --no-smoke
-    chdir: "{{ hindsight_repo_dir }}"
-  environment:
-    PM_BACKEND: "{{ hindsight_memory_backend }}"
-  register: hindsight_wizard
-  changed_when: "'wizard: changed=0' not in hindsight_wizard.stdout"
+    argv: ["{{ hindsight_repo_dir }}/scripts/run-setup.sh"]
+  register: hindsight_setup
+  changed_when: >-
+    hindsight_setup.rc == 0 and
+    ("wizard: changed=0" not in hindsight_setup.stdout)
   when: not ansible_check_mode
