@@ -60,9 +60,13 @@
     fail_msg: "docker is not usable without sudo. Add your user to the docker group, log in again, then rerun."
     quiet: true
 
+# mise shims put node/npm first on PATH (non-interactive ansible has no
+# `mise activate`). run-setup.sh uses ./setup / npm run setup — not `npx .`.
 - name: delegate stack setup to the personal-memory wizard
   ansible.builtin.command:
     argv: ["{{ hindsight_repo_dir }}/scripts/run-setup.sh"]
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/share/mise/shims:{{ ansible_env.PATH }}"
   register: hindsight_setup
   changed_when: >-
     hindsight_setup.rc == 0 and
