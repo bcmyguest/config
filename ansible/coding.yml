@@ -48,6 +48,8 @@
   roles:
     - role: codegraph
       tags: [codegraph]
+    - role: wteam
+      tags: [wteam]
     - role: milacoder
       tags: [milacoder]
     - role: vscode

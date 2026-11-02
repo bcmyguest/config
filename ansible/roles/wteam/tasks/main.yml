@@ -1,0 +1,66 @@
+# wteam — worker/reviewer agent teams (bcmyguest/wteam). Installs the static
+# release binary to ~/.local/bin, verified against the release's checksums.txt.
+# The agent skill installs separately: npx skills add bcmyguest/wteam
+
+- name: wteam release target is supported
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['system'] == 'Linux'
+      - ansible_facts['architecture'] in wteam_arches
+    fail_msg: >-
+      No wteam Linux binary for {{ ansible_facts['architecture'] }}; upstream
+      publishes x86_64 and aarch64 musl builds.
+
+- name: get latest release of wteam (cached)
+  ansible.builtin.include_role:
+    name: github-release-cached
+  vars:
+    gh_user: bcmyguest
+    gh_repo: wteam
+
+- name: choose version to install
+  ansible.builtin.set_fact:
+    version_to_install: "{{ pinned_version | default(release.tag | default('')) }}"
+  check_mode: false
+
+- name: build target version
+  ansible.builtin.set_fact:
+    target_version: "{{ version_to_install | regex_replace('^v', '') }}"
+  check_mode: false
+
+- name: get current wteam version
+  ansible.builtin.command:
+    argv:
+      - "{{ wteam_bin }}"
+      - --version
+  register: current_version_raw
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: extract installed version
+  ansible.builtin.set_fact:
+    current_version: "{{ current_version_raw.stdout | default('') | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | default([''], true) | first }}"
+  check_mode: false
+
+- name: show wteam versions
+  ansible.builtin.debug:
+    msg: "installed={{ current_version | default('none', true) }} target={{ target_version }}"
+
+- name: ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ wteam_bin | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: install wteam binary
+  ansible.builtin.get_url:
+    url: "https://github.com/bcmyguest/wteam/releases/download/{{ version_to_install }}/{{ wteam_asset }}"
+    checksum: "sha256:https://github.com/bcmyguest/wteam/releases/download/{{ version_to_install }}/checksums.txt"
+    dest: "{{ wteam_bin }}"
+    mode: "0755"
+    force: true
+  when:
+    - not ansible_check_mode
+    - target_version != current_version
+    - version_to_install | length > 0

@@ -1,0 +1,5 @@
+---
+# wteam releases one static binary per target (no archive), plus checksums.txt.
+wteam_bin: "{{ ansible_facts['env']['HOME'] }}/.local/bin/wteam"
+wteam_asset: "wteam-{{ ansible_facts['architecture'] }}-unknown-linux-musl"
+wteam_arches: [x86_64, aarch64]
