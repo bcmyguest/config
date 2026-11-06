@@ -34,3 +34,19 @@
 # - name: Claude Code version
 #   ansible.builtin.debug:
 #     var: claude_code_version.stdout
+
+# claude-rc: a master session that bypasses the smarter-compact proxy so Remote Control works.
+- name: write claude-rc alias to ~/.bashrc.d/claude-code
+  ansible.builtin.copy:
+    dest: "{{ ansible_facts['env']['HOME'] }}/.bashrc.d/claude-code"
+    mode: "0644"
+    content: |
+      alias claude-rc='claude --settings '\''{"env":{"ANTHROPIC_BASE_URL":"https://api.anthropic.com"}}'\'''
+
+- name: source ~/.bashrc.d/claude-code from ~/.bashrc
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: claude-code aliases"
+    block: |
+      [ -r "$HOME/.bashrc.d/claude-code" ] && . "$HOME/.bashrc.d/claude-code"
