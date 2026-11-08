@@ -4,6 +4,8 @@
   vars:
     gh_user: sst
     gh_repo: opencode
+    # upstream keeps marking v1.x "latest"; track the v2 line
+    gh_tag_regex: '^v2\.'
 - name: extract version from release
   set_fact:
     current_release: "{{ release.tag | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)', multiline=True) }}"

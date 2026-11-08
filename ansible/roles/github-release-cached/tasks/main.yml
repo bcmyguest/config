@@ -10,9 +10,11 @@
 #     vars:
 #       gh_user: <owner>
 #       gh_repo: <repo>
+#       gh_tag_regex: '^v2\.'   # optional: newest non-prerelease tag matching
+#                               # this, for repos whose "latest" is an older line
 - name: build cache path
   ansible.builtin.set_fact:
-    gh_cache_file: "{{ gh_release_cache_dir }}/{{ gh_user }}--{{ gh_repo }}.tag"
+    gh_cache_file: "{{ gh_release_cache_dir }}/{{ gh_user }}--{{ gh_repo }}{{ ('--' ~ (gh_tag_regex | hash('md5'))[:8]) if gh_tag_regex | default('') | length > 0 else '' }}.tag"
   check_mode: false
 
 - name: check release cache
@@ -37,7 +39,31 @@
     prerelease: false
   register: release
   check_mode: false
-  when: not gh_cache_fresh
+  when:
+    - not gh_cache_fresh
+    - gh_tag_regex | default('') | length == 0
+
+# GitHub's "latest" is whatever upstream last marked latest, which can be an
+# older maintenance line (sst/opencode keeps v1.x "latest" while shipping v2.x).
+- name: list releases of {{ gh_user }}/{{ gh_repo }}
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ gh_user }}/{{ gh_repo }}/releases?per_page=100"
+    headers:
+      Accept: application/vnd.github+json
+  register: gh_releases
+  check_mode: false
+  when:
+    - not gh_cache_fresh
+    - gh_tag_regex | default('') | length > 0
+
+- name: pick newest release matching {{ gh_tag_regex | default('') }}
+  ansible.builtin.set_fact:
+    release:
+      tag: "{{ (gh_releases.json | rejectattr('draft') | rejectattr('prerelease') | map(attribute='tag_name') | select('match', gh_tag_regex) | list)[0] }}"
+  check_mode: false
+  when:
+    - not gh_cache_fresh
+    - gh_tag_regex | default('') | length > 0
 
 - name: read cached release tag
   ansible.builtin.slurp:

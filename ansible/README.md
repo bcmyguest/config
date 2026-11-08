@@ -195,12 +195,12 @@ covers each tool's whole family of commands. A sourced script registers every na
 by itself and needs no links.
 
 Covered: `mise`, `fnox`, `uv`, `uvx`, `rustup`, `cargo`, `gh`, `grepai`,
-`opencode`, `zed`, `kitty`, `ansible`, plus `docker` from `ai-inference.yml`/`coding.yml`
-and `llama-server` from `ai-inference.yml`. Each tool declares which shells its generator genuinely supports,
-because three of them do not support all three — `rustup completions fish cargo`
-exits 1 (`cargo does not currently support completions for fish`), `opencode`
-ignores its shell argument entirely, returning a byte-identical bash script for
-all three, and `llama-server` offers only a `--completion-bash` flag. Each is also gated on its required binaries being on PATH, so the role
+`zed`, `kitty`, `ansible`, plus `docker` from `ai-inference.yml`/`coding.yml`
+and `llama-server` from `ai-inference.yml`. `opencode` v2 has no completion
+generator (v1's `completion` subcommand is gone). Each tool declares which shells its generator genuinely supports,
+because two of them do not support all three — `rustup completions fish cargo`
+exits 1 (`cargo does not currently support completions for fish`), and
+`llama-server` offers only a `--completion-bash` flag. Each is also gated on its required binaries being on PATH, so the role
 skips (and cleans up after) anything not installed; a missing tool never fails
 the play. `glab` is listed but skipped here because it isn't installed. The vars
 file records why `rtk`, `codegraph`, `claude`, `lemonade`/`lemond` and

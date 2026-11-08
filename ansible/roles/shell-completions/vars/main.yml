@@ -55,12 +55,9 @@ shell_completions_path: >-
 # keeps the role idempotent). `{shell}` is replaced with the shell name.
 #
 # `shells` lists only the shells the generator genuinely supports - checked per
-# tool rather than assumed, because three of them do not support all three:
+# tool rather than assumed, because two of them do not support all three:
 #   cargo         `rustup completions fish cargo` exits 1 with "cargo does not
 #                 currently support completions for fish"
-#   opencode      ignores its shell argument entirely - bash, zsh and fish all
-#                 return a byte-identical yargs script that drives COMP_WORDS /
-#                 COMP_CWORD, i.e. bash only
 #   llama-server  the generator is a flag, not a subcommand, and the flag names
 #                 the shell: only --completion-bash exists. --completion-zsh and
 #                 --completion-fish both exit 1 as unrecognised arguments
@@ -90,6 +87,10 @@ shell_completions_path: >-
 #   lemonade, lemond  - CLI11 apps (the lemond role's apt package). CLI11 ships
 #                       no completion generator; all five probe forms exit 109
 #                       and --help-all mentions neither "complet" nor "shell"
+#   opencode          - v2 dropped v1's yargs `completion` subcommand: v2.2.6
+#                       treats `completion` as a directory argument (ENOENT
+#                       chdir) and `completions`/`--completion` just print help.
+#                       --help lists no completion subcommand
 #   lazydocker        - a TUI, not a CLI: --help lists four flags and no
 #                       subcommands, and every probe form just reprints that
 #                       help and exits 0
@@ -181,10 +182,6 @@ shell_completions_tools:
     requires: [grepai]
     shells: [bash, zsh, fish]
     argv: [grepai, completion, "{shell}"]
-  - name: opencode
-    requires: [opencode]
-    shells: [bash]
-    argv: [opencode, completion, bash]
   - name: cursor
     requires: [cursor]
     shells: [bash, zsh, fish]
