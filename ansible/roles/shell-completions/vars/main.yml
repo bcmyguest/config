@@ -182,6 +182,16 @@ shell_completions_tools:
     requires: [grepai]
     shells: [bash, zsh, fish]
     argv: [grepai, completion, "{shell}"]
+  # clap/complete: `codex completion <shell>` (default shell is bash). Verified
+  # bash/zsh/fish all exit 0, write a script, and are byte-stable; the bash
+  # script does not call _comp_initialize/_comp_compgen, so it is fine on
+  # Ubuntu's bash-completion 2.11. Binary comes from the mise role's global pin
+  # (npm:@openai/codex) and is reached via the mise shim dir in
+  # shell_completions_path.
+  - name: codex
+    requires: [codex]
+    shells: [bash, zsh, fish]
+    argv: [codex, completion, "{shell}"]
   - name: cursor
     requires: [cursor]
     shells: [bash, zsh, fish]
