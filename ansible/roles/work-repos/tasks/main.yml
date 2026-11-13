@@ -52,11 +52,34 @@
       {{ work_repos_stat.results | rejectattr('stat.exists')
          | map(attribute='item') | list }}
 
+# Tokens for repos that name a gh account; the active account is used otherwise.
+- name: look up gh tokens for per-repo accounts
+  ansible.builtin.command:
+    argv: [gh, auth, token, -u, "{{ item }}"]
+  loop: "{{ work_repos_missing | selectattr('gh_user', 'defined') | map(attribute='gh_user') | unique | list }}"
+  register: work_repos_token_lookup
+  failed_when: false
+  changed_when: false
+  check_mode: false
+  no_log: true
+
+- name: map gh accounts to tokens
+  ansible.builtin.set_fact:
+    work_repos_tokens: >-
+      {{ dict(work_repos_token_lookup.results | default([])
+              | selectattr('rc', 'eq', 0)
+              | map(attribute='item')
+              | zip(work_repos_token_lookup.results | default([])
+                    | selectattr('rc', 'eq', 0)
+                    | map(attribute='stdout'))) }}
+  no_log: true
+
 # Only the repos not already on disk need an access check — an existing
 # checkout is never touched, so its access no longer matters.
 - name: probe access to repos not yet cloned
   ansible.builtin.command:
     argv: [gh, api, "repos/{{ item.owner_repo }}", --jq, .id]
+  environment: "{{ {'GH_TOKEN': work_repos_tokens[item.gh_user]} if item.gh_user is defined and item.gh_user in work_repos_tokens else {} }}"
   loop: "{{ work_repos_missing }}"
   loop_control:
     label: "{{ item.owner_repo }}"
@@ -90,6 +113,7 @@
     - name: gh repo clone
       ansible.builtin.command:
         argv: [gh, repo, clone, "{{ item.item.owner_repo }}", "{{ item.item.dest }}"]
+      environment: "{{ {'GH_TOKEN': work_repos_tokens[item.item.gh_user]} if item.item.gh_user is defined and item.item.gh_user in work_repos_tokens else {} }}"
       loop: "{{ work_repos_access_probe.results | default([]) | selectattr('rc', 'eq', 0) | list }}"
       loop_control:
         label: "{{ item.item.owner_repo }}"

@@ -2,14 +2,24 @@
 # Repos to clone under work_repos_dir/<group>/<repo>, and to alias in the
 # shell. `group` is the GitHub owner (user or org) — it doubles as the
 # nesting directory, so two repos from the same owner land side by side.
+# Optional `gh_user` clones with that gh account (`gh auth token -u <user>`)
+# instead of the active one.
 work_repos_dir: "{{ ansible_facts['env']['HOME'] }}/work"
 
 work_repos:
   - group: bcmyguest
     repo: claude-memory
   - group: mila-studios
+    repo: spot-the-fake
+  - group: mila-studios
     repo: aurora
   - group: mila-studios
     repo: agent-arcade-backlog
   - group: mila-studios
     repo: tech-docs
+  - group: milatechtransfer
+    repo: amlrt-templates
+    gh_user: bguest-mila
+  - group: mila-studios
+    repo: internal-agents
+    gh_user: bguest-mila

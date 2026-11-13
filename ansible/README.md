@@ -347,7 +347,8 @@ auth login`) — no SSH key setup needed. A repo already on disk is never
 pulled or reset, and a repo this gh account can't see is soft-skipped (same
 pattern as `milacoder`). The repo list lives in
 `roles/work-repos/vars/main.yml`; add an entry there to clone/alias another
-one. Aliases (`<repo>` cds into it) are written to `~/.bashrc.d/git`, sourced
+one. An entry's optional `gh_user` clones it with that gh account
+(`gh auth token -u <user>`) instead of the active one. Aliases (`<repo>` cds into it) are written to `~/.bashrc.d/git`, sourced
 from `~/.bashrc` via its own managed block — deliberately not
 `shell-completions`' bashrc.d loop, since that one only sources `*.bash` and
 is retired entirely on a box where bash autoloads completions.
