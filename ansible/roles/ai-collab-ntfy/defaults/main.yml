@@ -61,3 +61,10 @@ ai_collab_ntfy_auth_enabled: true
 ai_collab_ntfy_user: ai-collab
 # Topic ACL granted to the service user (read-write). "*" = all topics.
 ai_collab_ntfy_topic_pattern: "*"
+
+# Hosts exempt from ntfy's per-visitor request limit. Host clients reach the container from the
+# Docker bridge gateway (inside Docker's default 172.16.0.0/12 pool), not 127.0.0.1.
+ai_collab_ntfy_rate_limit_exempt_hosts:
+  - 127.0.0.1
+  - "::1"
+  - 172.16.0.0/12

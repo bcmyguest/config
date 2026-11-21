@@ -7,6 +7,9 @@ cache-duration: "{{ ai_collab_ntfy_cache_duration }}"
 auth-file: "/var/lib/ntfy/user.db"
 auth-default-access: "deny-all"
 {% endif %}
+{% if ai_collab_ntfy_rate_limit_exempt_hosts | length %}
+visitor-request-limit-exempt-hosts: "{{ ai_collab_ntfy_rate_limit_exempt_hosts | join(',') }}"
+{% endif %}
 {% if ai_collab_ntfy_tailscale_serve | bool %}
 # Traffic arrives via the local Tailscale Serve proxy.
 behind-proxy: true
