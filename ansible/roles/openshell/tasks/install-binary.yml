@@ -1,0 +1,76 @@
+---
+# One binary from the pinned release. Included per entry of openshell_binaries.
+# Input: openshell_item (name, asset, checksums); openshell_tmp from main.yml.
+
+- name: read published sha256 of {{ openshell_item.asset }}
+  ansible.builtin.set_fact:
+    openshell_asset_sha256: "{{ lookup('ansible.builtin.file', openshell_tmp.path ~ '/' ~ openshell_item.checksums) | regex_findall('(?m)^([0-9a-f]{64})\\s+' ~ (openshell_item.asset | regex_escape) ~ '$') | first }}"
+
+- name: stat installed {{ openshell_item.name }}
+  ansible.builtin.stat:
+    path: "{{ openshell_bin_dir }}/{{ openshell_item.name }}"
+  register: openshell_bin_stat
+  check_mode: false
+
+- name: stat install marker for {{ openshell_item.name }}
+  ansible.builtin.stat:
+    path: "{{ openshell_state_dir }}/{{ openshell_item.name }}.sha256"
+  register: openshell_marker_stat
+  check_mode: false
+
+- name: read install marker for {{ openshell_item.name }}
+  ansible.builtin.slurp:
+    src: "{{ openshell_marker_stat.stat.path }}"
+  register: openshell_marker
+  when: openshell_marker_stat.stat.exists
+  check_mode: false
+
+- name: decide whether {{ openshell_item.name }} is current
+  ansible.builtin.set_fact:
+    openshell_binary_current: "{{ openshell_bin_stat.stat.exists and openshell_marker_stat.stat.exists and (openshell_marker.content | b64decode | trim) == openshell_asset_sha256 }}"
+  check_mode: false
+
+- name: show {{ openshell_item.name }} status
+  ansible.builtin.debug:
+    msg: "{{ openshell_item.name }} {{ 'already at' if openshell_binary_current else 'installing' }} {{ openshell_version }}"
+
+- name: download and install {{ openshell_item.name }}
+  when:
+    - not openshell_binary_current
+    - not ansible_check_mode
+  block:
+    - name: download {{ openshell_item.asset }}
+      ansible.builtin.get_url:
+        url: "{{ openshell_release_url }}/{{ openshell_item.asset }}"
+        dest: "{{ openshell_tmp.path }}/{{ openshell_item.asset }}"
+        checksum: "sha256:{{ openshell_asset_sha256 }}"
+        mode: "0600"
+
+    - name: extract {{ openshell_item.name }}
+      ansible.builtin.unarchive:
+        src: "{{ openshell_tmp.path }}/{{ openshell_item.asset }}"
+        dest: "{{ openshell_tmp.path }}"
+        remote_src: true
+
+    # copy from the tempdir, then set mode explicitly (copy keeps the source mode only partly)
+    - name: install {{ openshell_item.name }} into {{ openshell_bin_dir }}
+      ansible.builtin.copy:
+        src: "{{ openshell_tmp.path }}/{{ openshell_item.name }}"
+        dest: "{{ openshell_bin_dir }}/{{ openshell_item.name }}"
+        remote_src: true
+        mode: "0755"
+      register: openshell_copy
+
+    # restart the running gateway only when its own binary changed (CLI changes do not)
+    - name: flag gateway binary change
+      ansible.builtin.set_fact:
+        openshell_gateway_binary_changed: true
+      when:
+        - openshell_item.name == 'openshell-gateway'
+        - openshell_copy.changed
+
+    - name: write install marker for {{ openshell_item.name }}
+      ansible.builtin.copy:
+        content: "{{ openshell_asset_sha256 }}\n"
+        dest: "{{ openshell_state_dir }}/{{ openshell_item.name }}.sha256"
+        mode: "0644"

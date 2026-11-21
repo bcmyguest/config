@@ -1,0 +1,121 @@
+---
+# ---- 1. preconditions (no side effects) -------------------------------------
+- name: validate openshell target platform
+  ansible.builtin.assert:
+    that:
+      - ansible_system == 'Linux'
+      - ansible_architecture == 'x86_64'
+    fail_msg: "The openshell role installs Linux x86_64 release assets only (this host: {{ ansible_system }} {{ ansible_architecture }})."
+
+# ---- 2. directories ----------------------------------------------------------
+- name: create openshell bin, state, and unit directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ openshell_bin_dir }}"
+    - "{{ openshell_state_dir }}"
+    - "{{ openshell_unit_dir }}"
+
+# ---- 3. pinned release checksums ---------------------------------------------
+- name: create temporary download directory
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: openshell
+  register: openshell_tmp
+  check_mode: false
+
+- name: download release checksum files
+  ansible.builtin.get_url:
+    url: "{{ openshell_release_url }}/{{ item.checksums }}"
+    dest: "{{ openshell_tmp.path }}/{{ item.checksums }}"
+    mode: "0600"
+  loop: "{{ openshell_binaries }}"
+  loop_control:
+    label: "{{ item.checksums }}"
+  check_mode: false
+
+# ---- 4. binaries (per-binary include, skipped when the marker matches) --------
+- name: reset gateway binary change flag
+  ansible.builtin.set_fact:
+    openshell_gateway_binary_changed: false
+
+- name: install openshell binaries from the pinned release
+  ansible.builtin.include_tasks: install-binary.yml
+  loop: "{{ openshell_binaries }}"
+  loop_control:
+    loop_var: openshell_item
+    label: "{{ openshell_item.name }} {{ openshell_version }}"
+
+# ---- 5. systemd user unit -----------------------------------------------------
+- name: render openshell-gateway user unit
+  ansible.builtin.template:
+    src: openshell-gateway.service.j2
+    dest: "{{ openshell_unit_dir }}/openshell-gateway.service"
+    mode: "0644"
+  notify: Restart openshell-gateway
+  when: not ansible_check_mode
+
+- name: enable and start openshell-gateway user service
+  ansible.builtin.systemd_service:
+    name: openshell-gateway
+    scope: user
+    daemon_reload: true
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+
+- name: restart gateway after its binary changed
+  ansible.builtin.systemd_service:
+    name: openshell-gateway
+    scope: user
+    state: restarted
+  when:
+    - openshell_gateway_binary_changed | bool
+    - not ansible_check_mode
+
+- name: flush handlers so unit changes apply before registration
+  ansible.builtin.meta: flush_handlers
+
+- name: wait for gateway listener on {{ openshell_gateway_port }}
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ openshell_gateway_port }}"
+    timeout: 60
+  when: not ansible_check_mode
+
+# ---- 6. gateway registration (only when the name is absent) ------------------
+- name: list registered openshell gateways
+  ansible.builtin.command:
+    argv: [openshell, gateway, list]
+  register: openshell_gateway_list
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: register local gateway {{ openshell_gateway_name }}
+  ansible.builtin.command:
+    argv: [openshell, gateway, add, "{{ openshell_gateway_endpoint }}", --local, --name, "{{ openshell_gateway_name }}"]
+  when:
+    - not ansible_check_mode
+    - openshell_gateway_list.stdout | regex_search('(?m)^\*?\s*' ~ openshell_gateway_name ~ '\s') is none
+
+- name: warn when registered endpoint differs from the served endpoint
+  ansible.builtin.debug:
+    msg: >-
+      Gateway '{{ openshell_gateway_name }}' is registered at
+      {{ openshell_gateway_list.stdout | regex_search('(?m)^\*?\s*' ~ openshell_gateway_name ~ '\s+(\S+)', '\\1') | first }}
+      but the service serves {{ openshell_gateway_endpoint }}. Not changed: remove and re-add it by hand.
+  when:
+    - not ansible_check_mode
+    - openshell_gateway_list.stdout | regex_search('(?m)^\*?\s*' ~ openshell_gateway_name ~ '\s+(\S+)', '\\1') is not none
+    - openshell_gateway_list.stdout | regex_search('(?m)^\*?\s*' ~ openshell_gateway_name ~ '\s+(\S+)', '\\1') | first != openshell_gateway_endpoint
+
+- name: show openshell status
+  ansible.builtin.debug:
+    msg:
+      - "openshell {{ openshell_version }} in {{ openshell_bin_dir }}"
+      - "openshell-gateway.service (user unit): enable and start by this role, Restart=always"
+      - "gateway endpoint: {{ openshell_gateway_endpoint }}"
+      - "linger is not set by this role. Keep the gateway running after logout with: sudo loginctl enable-linger $USER"

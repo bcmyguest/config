@@ -1,0 +1,5 @@
+---
+- name: Apply ai-collab ntfy compose
+  ansible.builtin.command:
+    argv: "{{ ai_collab_ntfy_compose + ['up', '-d', '--force-recreate', 'ntfy'] }}"
+  when: not ansible_check_mode

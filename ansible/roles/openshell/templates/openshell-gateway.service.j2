@@ -1,0 +1,32 @@
+# Managed by the ansible openshell role. Based on upstream openshell-gateway.service
+# (ai-openshell/openshell v{{ openshell_version }}, RPM): podman dependency, the
+# package-only migrate-config step, and Restart=on-failure are changed for a
+# user-home install.
+[Unit]
+Description=OpenShell Gateway (user)
+Documentation=https://github.com/{{ openshell_gh_repo }}
+
+[Service]
+Type=exec
+# Upstream: seed/migrate ~/.config/openshell/gateway.toml (omitted: the packaged
+# helper is not installed here; the gateway uses its runtime defaults without a file).
+# Reject an invalid selected configuration before generating certificates.
+ExecStartPre={{ openshell_bin_dir }}/openshell-gateway config preflight
+# Auto-generate PKI on first start if not present.
+Environment=OPENSHELL_LOCAL_TLS_DIR=%h/.local/state/openshell/tls
+ExecStartPre={{ openshell_bin_dir }}/openshell-gateway generate-certs --output-dir ${OPENSHELL_LOCAL_TLS_DIR} --server-san host.openshell.internal
+# gateway.env is honored for backward compatibility with pre-1415 installs.
+EnvironmentFile=-%E/openshell/gateway.env
+ExecStart={{ openshell_bin_dir }}/openshell-gateway
+StateDirectory=openshell
+Restart=always
+RestartSec={{ openshell_restart_sec }}
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+PrivateTmp=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=default.target

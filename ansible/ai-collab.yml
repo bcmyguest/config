@@ -1,0 +1,22 @@
+---
+# ai-collab: ntfy notification server for the ai-collab plugin, run as a Docker
+# Compose service on this machine. Standalone: NOT run by nvim.yml or
+# ai-inference.yml. Install path: ~/.config/nvim/ansible/ai-collab.yml
+#
+#   ansible-playbook ai-collab.yml --check --diff   # dry run
+#   ansible-playbook ai-collab.yml                  # deploy / rerun (safe)
+#
+# Requires: Docker Engine with the Compose v2 plugin, and this user able to run
+# `docker` without sudo (docker group). The play fails early with a clear message
+# if either is missing. No become/sudo is used.
+#
+# Defaults: loopback only (http://127.0.0.1:8794), token auth enabled, token
+# written to ~/.config/ai-collab/ntfy/token and client.env. See ai-collab-ntfy.md.
+- name: ai-collab ntfy server
+  hosts: localhost
+  connection: local
+  roles:
+    - role: ai-collab-ntfy
+      tags: [ai-collab-ntfy]
+    - role: openshell
+      tags: [openshell]

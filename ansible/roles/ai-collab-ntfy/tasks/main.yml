@@ -1,0 +1,282 @@
+---
+# Docker is driven through the CLI (`docker compose`), not community.docker, for the
+# same reason as roles/openwebui: ansible runs from a pipx venv with no docker SDK.
+#
+# Every ntfy CLI call (user/access/token) runs INSIDE the container via
+# `docker compose exec`, so no ntfy binary is needed on the host.
+
+# ---- 1. configuration validation (no side effects) --------------------------
+- name: validate ai-collab ntfy configuration
+  ansible.builtin.assert:
+    that:
+      - (ai_collab_ntfy_port | int) >= 1024 and (ai_collab_ntfy_port | int) <= 65535
+      - ai_collab_ntfy_version is match('^v[0-9]+\.[0-9]+\.[0-9]+$')
+      - ai_collab_ntfy_bind_address is match('^([0-9]{1,3}\.){3}[0-9]{1,3}$')
+      - ai_collab_ntfy_bind_address != '0.0.0.0'
+      - ai_collab_ntfy_auth_enabled | bool or ai_collab_ntfy_bind_address == '127.0.0.1'
+      - not (ai_collab_ntfy_tailscale_serve | bool) or ai_collab_ntfy_auth_enabled | bool
+      - not (ai_collab_ntfy_tailscale_serve | bool) or ai_collab_ntfy_bind_address == '127.0.0.1'
+      - not (ai_collab_ntfy_tailscale_serve | bool) or (ai_collab_ntfy_tailscale_https_port | int) in [443, 8443, 10000]
+      - not (ai_collab_ntfy_tailscale_serve | bool) or ai_collab_ntfy_client_url is match('^https://')
+    fail_msg: >-
+      Unsupported ai-collab ntfy configuration. Rules: port 1024-65535; version must be an
+      explicit vX.Y.Z tag; bind_address must be an IPv4 address other than 0.0.0.0;
+      auth may be disabled only with bind_address 127.0.0.1; tailscale_serve requires
+      auth, bind_address 127.0.0.1, an https:// client_url, and tailscale_https_port of
+      443, 8443 or 10000.
+
+# ---- 2. preflight: docker CLI, daemon, compose v2 (read-only) ---------------
+- name: find docker CLI
+  ansible.builtin.shell:
+    cmd: command -v docker
+  register: ai_collab_docker_bin
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: require docker CLI
+  ansible.builtin.assert:
+    that: ai_collab_docker_bin.rc == 0
+    fail_msg: >-
+      docker CLI not found on PATH. Install Docker Engine (ai-inference.yml --tags docker)
+      and make sure this user can run docker without sudo.
+
+- name: check reachable docker daemon
+  ansible.builtin.command:
+    argv: [docker, version, --format, "{% raw %}{{.Server.Version}}{% endraw %}"]
+  register: ai_collab_docker_daemon
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: require reachable docker daemon
+  ansible.builtin.assert:
+    that: ai_collab_docker_daemon.rc == 0
+    fail_msg: >-
+      Cannot reach the docker daemon as this user ({{ ai_collab_docker_daemon.stderr | default('') | trim }}).
+      Check that the daemon is running and this user is in the docker group.
+
+- name: check Compose v2 plugin
+  ansible.builtin.command:
+    argv: [docker, compose, version, --short]
+  register: ai_collab_compose_version
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: require Compose v2 plugin
+  ansible.builtin.assert:
+    that:
+      - ai_collab_compose_version.rc == 0
+      - (ai_collab_compose_version.stdout | replace('v', '') | split('.') | first | int) >= 2
+    fail_msg: >-
+      Docker Compose v2 plugin is required (`docker compose version` failed or reports v1).
+      Install docker-compose-plugin (v2) and try again.
+
+# ---- 3. directories and rendered files ---------------------------------------
+- name: check for an existing deployment directory in check mode
+  ansible.builtin.stat:
+    path: "{{ ai_collab_ntfy_config_dir }}"
+  register: ai_collab_ntfy_config_dir_stat
+  when: ansible_check_mode
+
+- name: create ntfy config and data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - "{{ ai_collab_ntfy_config_dir }}"
+    - "{{ ai_collab_ntfy_data_dir }}"
+    - "{{ ai_collab_ntfy_data_dir }}/cache"
+    - "{{ ai_collab_ntfy_data_dir }}/lib"
+
+- name: render ntfy server config
+  ansible.builtin.template:
+    src: server.yml.j2
+    dest: "{{ ai_collab_ntfy_config_dir }}/server.yml"
+    mode: "0600"
+  notify: Apply ai-collab ntfy compose
+  when: not ansible_check_mode or ai_collab_ntfy_config_dir_stat.stat.isdir | default(false)
+
+- name: render ntfy compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ ai_collab_ntfy_config_dir }}/compose.yml"
+    mode: "0600"
+  notify: Apply ai-collab ntfy compose
+  when: not ansible_check_mode or ai_collab_ntfy_config_dir_stat.stat.isdir | default(false)
+
+# Apply config/compose changes before the health and auth steps below.
+- name: flush handlers so compose changes apply before health checks
+  ansible.builtin.meta: flush_handlers
+
+# ---- 4. service running (compose service only) ------------------------------
+- name: check whether the ntfy container is running
+  ansible.builtin.command:
+    argv: "{{ ai_collab_ntfy_compose + ['ps', '--status', 'running', '-q', 'ntfy'] }}"
+  register: ai_collab_running
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: start ntfy if it is not running
+  ansible.builtin.command:
+    argv: "{{ ai_collab_ntfy_compose + ['up', '-d', 'ntfy'] }}"
+  when:
+    - not ansible_check_mode
+    - ai_collab_running.stdout | default('') | trim == ''
+
+# ---- 5. idle health ----------------------------------------------------------
+- name: wait for ntfy health endpoint
+  ansible.builtin.uri:
+    url: "{{ ai_collab_ntfy_probe_url }}/v1/health"
+    method: GET
+    return_content: false
+  register: ai_collab_health
+  failed_when: false
+  until: ai_collab_health.status | default(-1) == 200
+  retries: 30
+  delay: 2
+  when: not ansible_check_mode
+
+- name: assert ntfy is healthy
+  ansible.builtin.assert:
+    that: ai_collab_health.status | default(-1) == 200
+    fail_msg: >-
+      ntfy did not become healthy at {{ ai_collab_ntfy_probe_url }}/v1/health.
+      Inspect: docker compose -p {{ ai_collab_ntfy_project }} -f {{ ai_collab_ntfy_config_dir }}/compose.yml logs
+  when: not ansible_check_mode
+
+# ---- 6. authentication: service user, ACL, reusable token -------------------
+- name: default to no client token
+  ansible.builtin.set_fact:
+    ai_collab_ntfy_active_token: ""
+  no_log: true
+
+- name: configure authentication
+  when:
+    - ai_collab_ntfy_auth_enabled | bool
+    - not ansible_check_mode
+  block:
+    - name: stat existing token file
+      ansible.builtin.stat:
+        path: "{{ ai_collab_ntfy_token_file }}"
+      register: ai_collab_token_stat
+
+    - name: read existing token file
+      ansible.builtin.slurp:
+        src: "{{ ai_collab_ntfy_token_file }}"
+      register: ai_collab_token_raw
+      when: ai_collab_token_stat.stat.exists
+      no_log: true
+
+    - name: set existing token value
+      ansible.builtin.set_fact:
+        ai_collab_existing_token: "{{ ai_collab_token_raw.content | b64decode | trim if ai_collab_token_stat.stat.exists else '' }}"
+      no_log: true
+
+    - name: check whether the existing token still authenticates
+      ansible.builtin.uri:
+        url: "{{ ai_collab_ntfy_probe_url }}/v1/account"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ ai_collab_existing_token }}"
+        return_content: false
+      register: ai_collab_token_check
+      failed_when: false
+      when: ai_collab_existing_token | length > 0
+      no_log: true
+
+    - name: decide whether a new token is needed
+      ansible.builtin.set_fact:
+        ai_collab_need_token: "{{ not (ai_collab_token_check.status | default(-1) == 200) }}"
+      no_log: true
+
+    - name: list ntfy users
+      ansible.builtin.command:
+        argv: "{{ ai_collab_ntfy_compose + ['exec', '-T', 'ntfy', 'ntfy', 'user', 'list'] }}"
+      register: ai_collab_user_list
+      changed_when: false
+
+    - name: create the ntfy service user when missing
+      block:
+        - name: generate a throwaway password for user creation
+          ansible.builtin.set_fact:
+            ai_collab_user_password: "{{ lookup('ansible.builtin.pipe', 'openssl rand -hex 24') }}"
+          no_log: true
+
+        # The password is only used to create the account; tokens are issued via the
+        # CLI and do not need it, so it is not stored anywhere.
+        - name: add ntfy service user
+          ansible.builtin.command:
+            argv: "{{ ai_collab_ntfy_compose + ['exec', '-T', '-e', 'NTFY_PASSWORD', 'ntfy', 'ntfy', 'user', 'add', '--role=user', ai_collab_ntfy_user] }}"
+          environment:
+            NTFY_PASSWORD: "{{ ai_collab_user_password }}"
+          no_log: true
+      when: (ai_collab_user_list.stdout ~ '\n' ~ ai_collab_user_list.stderr) is not search('(?m)^user ' ~ ai_collab_ntfy_user ~ ' ')
+
+    # Deny-all default means the service user needs an explicit topic grant. This is an
+    # upsert, so it is safe on every run.
+    - name: grant service user read-write on the topic pattern
+      ansible.builtin.command:
+        argv: "{{ ai_collab_ntfy_compose + ['exec', '-T', 'ntfy', 'ntfy', 'access', ai_collab_ntfy_user, ai_collab_ntfy_topic_pattern, 'rw'] }}"
+      changed_when: false
+
+    - name: revoke the previous token (if any)
+      ansible.builtin.command:
+        argv: "{{ ai_collab_ntfy_compose + ['exec', '-T', 'ntfy', 'ntfy', 'token', 'remove', ai_collab_ntfy_user, ai_collab_existing_token] }}"
+      when: ai_collab_need_token | bool and ai_collab_existing_token | length > 0
+      failed_when: false
+      changed_when: false
+      no_log: true
+
+    - name: issue a new token
+      ansible.builtin.command:
+        argv: "{{ ai_collab_ntfy_compose + ['exec', '-T', 'ntfy', 'ntfy', 'token', 'add', '--label=ai-collab-local', ai_collab_ntfy_user] }}"
+      register: ai_collab_token_add
+      when: ai_collab_need_token | bool
+      changed_when: true
+      no_log: true
+
+    - name: take the newly issued token
+      ansible.builtin.set_fact:
+        ai_collab_ntfy_active_token: "{{ ((ai_collab_token_add.stdout ~ ' ' ~ ai_collab_token_add.stderr) | regex_search('tk_[A-Za-z0-9]+')) | default('', true) }}"
+      when: ai_collab_need_token | bool
+      no_log: true
+
+    - name: keep the existing token
+      ansible.builtin.set_fact:
+        ai_collab_ntfy_active_token: "{{ ai_collab_existing_token }}"
+      when: not (ai_collab_need_token | bool)
+      no_log: true
+
+    - name: assert a usable token exists
+      ansible.builtin.assert:
+        that: ai_collab_ntfy_active_token | length > 0
+        fail_msg: "Could not obtain a token for ntfy user {{ ai_collab_ntfy_user }} (token add output did not contain a tk_ token)."
+      no_log: true
+
+    - name: write token file (0600)
+      ansible.builtin.copy:
+        content: "{{ ai_collab_ntfy_active_token }}\n"
+        dest: "{{ ai_collab_ntfy_token_file }}"
+        mode: "0600"
+      no_log: true
+
+# ---- 7. client contract ------------------------------------------------------
+- name: write client env file (AI_COLLAB_URL / AI_COLLAB_TOKEN)
+  ansible.builtin.template:
+    src: client.env.j2
+    dest: "{{ ai_collab_ntfy_client_env_file }}"
+    mode: "0600"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: show ai-collab ntfy status
+  ansible.builtin.debug:
+    msg:
+      - "ntfy up at {{ ai_collab_ntfy_client_url }} (bind {{ ai_collab_ntfy_bind_address }}:{{ ai_collab_ntfy_port }}, image {{ ai_collab_ntfy_image_repo }}:{{ ai_collab_ntfy_version }})"
+      - "auth: {{ 'token required (' ~ ai_collab_ntfy_token_file ~ ')' if ai_collab_ntfy_auth_enabled | bool else 'DISABLED (anonymous read-write, loopback only)' }}"
+      - "clients: source {{ ai_collab_ntfy_client_env_file }} (AI_COLLAB_URL, AI_COLLAB_TOKEN)"
+      - "{{ ('Tailscale Serve is opt-in and NOT configured by this role. To expose it, run: tailscale serve --service=svc:ai-collab --https=' ~ ai_collab_ntfy_tailscale_https_port ~ ' http://127.0.0.1:' ~ ai_collab_ntfy_port) if ai_collab_ntfy_tailscale_serve | bool else 'Tailscale Serve: not enabled (loopback only)' }}"

@@ -1,0 +1,63 @@
+---
+# Defaults for the ai-collab-ntfy role. Override with -e or in the playbook's vars.
+# Every knob the playbook exposes lives here.
+
+# --- image --------------------------------------------------------------------
+# Image repo and pinned tag. Upgrade by overriding the version, e.g.
+#   ansible-playbook ai-collab.yml -e ai_collab_ntfy_version=v2.39.0
+# Must be an explicit vX.Y.Z tag (no `latest`); the role asserts this.
+# v2.38.1 is the latest official GitHub release at authoring time.
+ai_collab_ntfy_image_repo: binwiederhier/ntfy
+ai_collab_ntfy_version: v2.38.1
+
+# --- compose project / paths -------------------------------------------------
+ai_collab_ntfy_project: ai-collab
+ai_collab_ntfy_container_name: ai-collab-ntfy
+ai_collab_ntfy_config_dir: "{{ ansible_env.HOME }}/.config/ai-collab/ntfy"
+ai_collab_ntfy_data_dir: "{{ ansible_env.HOME }}/.local/share/ai-collab/ntfy"
+ai_collab_ntfy_token_file: "{{ ai_collab_ntfy_config_dir }}/token"
+ai_collab_ntfy_client_env_file: "{{ ai_collab_ntfy_config_dir }}/client.env"
+
+# Base argv for every compose call. Docker CLI + Compose v2 only; no docker SDK.
+ai_collab_ntfy_compose:
+  - docker
+  - compose
+  - -p
+  - "{{ ai_collab_ntfy_project }}"
+  - -f
+  - "{{ ai_collab_ntfy_config_dir }}/compose.yml"
+
+# --- network -----------------------------------------------------------------
+# Host address the published port binds to. 127.0.0.1 (loopback) by default.
+# Any other explicit IPv4 address (e.g. a Tailscale 100.x.y.z address) is allowed
+# but REQUIRES auth. 0.0.0.0 is rejected. The role never changes network config.
+ai_collab_ntfy_bind_address: 127.0.0.1
+# Dedicated host port. Container listens on 80 internally.
+ai_collab_ntfy_port: 8794
+
+# Endpoint that clients use. Written to client.env as AI_COLLAB_URL.
+# Also used as ntfy's base-url. Override for Tailscale Serve, e.g.
+#   ai_collab_ntfy_client_url: https://<machine>.<tailnet>.ts.net:8443
+ai_collab_ntfy_client_url: "http://{{ ai_collab_ntfy_bind_address }}:{{ ai_collab_ntfy_port }}"
+ai_collab_ntfy_base_url: "{{ ai_collab_ntfy_client_url }}"
+# Endpoint the role itself uses for health and token checks. Always reachable
+# from this host via the bind address, even when client_url is a tailnet name.
+ai_collab_ntfy_probe_url: "http://{{ ai_collab_ntfy_bind_address }}:{{ ai_collab_ntfy_port }}"
+
+# Opt-in Tailscale Serve route. When true, the role only validates and prints the
+# `tailscale serve` command. It does NOT run it. See ai-collab-ntfy.md.
+ai_collab_ntfy_tailscale_serve: false
+# HTTPS port Tailscale Serve should listen on. Allowed: 443, 8443, 10000.
+ai_collab_ntfy_tailscale_https_port: 443
+
+# --- storage / server behaviour ----------------------------------------------
+ai_collab_ntfy_cache_duration: 12h
+
+# --- authentication ----------------------------------------------------------
+# true: auth-file (SQLite) + deny-all default. The role creates a service user,
+# grants it access to ai_collab_ntfy_topic_pattern, and writes a token file.
+# false: anonymous read-write. Only allowed when bind address is 127.0.0.1.
+ai_collab_ntfy_auth_enabled: true
+ai_collab_ntfy_user: ai-collab
+# Topic ACL granted to the service user (read-write). "*" = all topics.
+ai_collab_ntfy_topic_pattern: "*"

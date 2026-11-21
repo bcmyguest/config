@@ -1,0 +1,13 @@
+# Managed by the ai-collab-ntfy Ansible role. Reference: https://docs.ntfy.sh/config/
+base-url: "{{ ai_collab_ntfy_base_url }}"
+listen-http: ":80"
+cache-file: "/var/cache/ntfy/cache.db"
+cache-duration: "{{ ai_collab_ntfy_cache_duration }}"
+{% if ai_collab_ntfy_auth_enabled | bool %}
+auth-file: "/var/lib/ntfy/user.db"
+auth-default-access: "deny-all"
+{% endif %}
+{% if ai_collab_ntfy_tailscale_serve | bool %}
+# Traffic arrives via the local Tailscale Serve proxy.
+behind-proxy: true
+{% endif %}

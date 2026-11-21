@@ -1,0 +1,22 @@
+# Managed by the ai-collab-ntfy Ansible role. Edit role vars and rerun, not this file.
+name: {{ ai_collab_ntfy_project }}
+
+services:
+  ntfy:
+    image: "{{ ai_collab_ntfy_image_repo }}:{{ ai_collab_ntfy_version }}"
+    container_name: {{ ai_collab_ntfy_container_name }}
+    command: [serve]
+    restart: unless-stopped
+    init: true
+    ports:
+      - "{{ ai_collab_ntfy_bind_address }}:{{ ai_collab_ntfy_port }}:80"
+    volumes:
+      - "{{ ai_collab_ntfy_config_dir }}/server.yml:/etc/ntfy/server.yml:ro"
+      - "{{ ai_collab_ntfy_data_dir }}/cache:/var/cache/ntfy"
+      - "{{ ai_collab_ntfy_data_dir }}/lib:/var/lib/ntfy"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:80/v1/health | grep -q true"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

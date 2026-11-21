@@ -1,0 +1,44 @@
+---
+# Defaults for the openshell role. Override with -e or in the playbook's vars.
+#
+# Installs the OpenShell CLI and gateway from the pinned GitHub release into
+# ~/.local/bin (no sudo) and runs the gateway as the systemd user unit
+# openshell-gateway. Linux x86_64 only.
+#
+# Platform limit: macOS is not supported. v0.1.9 ships aarch64-apple-darwin
+# tarballs for openshell and openshell-gateway (plus openshell-driver-vm for
+# darwin). This role asserts ansible_system == Linux and installs a systemd user
+# unit. macOS would need a launchd LaunchAgent with KeepAlive instead; not implemented.
+#
+# Runtime requirement: Docker Engine 28.0 or later (upstream installation docs).
+# The gateway auto-detects its compute driver (Kubernetes, then Podman, then
+# Docker). This host has no podman, so Docker is selected. The upstream RPM pins
+# compute_driver = "podman"; this role does not install that pin.
+# Docker is NOT installed by this role.
+
+# --- release -------------------------------------------------------------------
+openshell_version: 0.1.9
+openshell_gh_repo: ai-openshell/openshell
+openshell_release_url: "https://github.com/{{ openshell_gh_repo }}/releases/download/v{{ openshell_version }}"
+
+# Linux x86_64 assets. Checksums come from the matching *-checksums-sha256.txt file.
+openshell_binaries:
+  - name: openshell
+    asset: openshell-x86_64-unknown-linux-musl.tar.gz
+    checksums: openshell-checksums-sha256.txt
+  - name: openshell-gateway
+    asset: openshell-gateway-x86_64-unknown-linux-gnu.tar.gz
+    checksums: openshell-gateway-checksums-sha256.txt
+
+# --- paths -----------------------------------------------------------------------
+openshell_bin_dir: "{{ ansible_env.HOME }}/.local/bin"
+openshell_state_dir: "{{ ansible_env.HOME }}/.local/share/openshell"
+openshell_unit_dir: "{{ ansible_env.HOME }}/.config/systemd/user"
+
+# --- gateway ---------------------------------------------------------------------
+# Upstream serves TLS on 127.0.0.1:17670 (generate-certs writes the mTLS client
+# certs under ~/.config/openshell/gateways/openshell/mtls for the CLI).
+openshell_gateway_port: 17670
+openshell_gateway_endpoint: "https://127.0.0.1:{{ openshell_gateway_port }}"
+openshell_gateway_name: openshell
+openshell_restart_sec: 5
