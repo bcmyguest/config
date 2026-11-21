@@ -68,3 +68,8 @@ ai_collab_ntfy_rate_limit_exempt_hosts:
   - 127.0.0.1
   - "::1"
   - 172.16.0.0/12
+
+# Attachments (screenshots from agents). Stored in the cache volume; empty file limit disables them.
+ai_collab_ntfy_attachment_file_size_limit: 15M
+ai_collab_ntfy_attachment_total_size_limit: 1G
+ai_collab_ntfy_attachment_expiry_duration: "{{ ai_collab_ntfy_cache_duration }}"

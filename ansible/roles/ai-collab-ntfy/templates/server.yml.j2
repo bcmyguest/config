@@ -7,6 +7,12 @@ cache-duration: "{{ ai_collab_ntfy_cache_duration }}"
 auth-file: "/var/lib/ntfy/user.db"
 auth-default-access: "deny-all"
 {% endif %}
+{% if ai_collab_ntfy_attachment_file_size_limit %}
+attachment-cache-dir: "/var/cache/ntfy/attachments"
+attachment-file-size-limit: "{{ ai_collab_ntfy_attachment_file_size_limit }}"
+attachment-total-size-limit: "{{ ai_collab_ntfy_attachment_total_size_limit }}"
+attachment-expiry-duration: "{{ ai_collab_ntfy_attachment_expiry_duration }}"
+{% endif %}
 {% if ai_collab_ntfy_rate_limit_exempt_hosts | length %}
 visitor-request-limit-exempt-hosts: "{{ ai_collab_ntfy_rate_limit_exempt_hosts | join(',') }}"
 {% endif %}
